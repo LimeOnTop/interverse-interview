@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package interview;
+
+import "services/proto/common.proto";
+
+option go_package = "github.com/inter-verse/services/interview-service/proto";
+
+// Interview service definition
+service InterviewService {
+  rpc CreateInterview(CreateInterviewRequest) returns (CreateInterviewResponse);
+  rpc GetInterview(GetInterviewRequest) returns (GetInterviewResponse);
+  rpc GetInterviews(GetInterviewsRequest) returns (GetInterviewsResponse);
+  rpc UpdateInterview(UpdateInterviewRequest) returns (UpdateInterviewResponse);
+  rpc DeleteInterview(DeleteInterviewRequest) returns (common.Response);
+  rpc GetScheduledInterviews(GetScheduledInterviewsRequest) returns (GetScheduledInterviewsResponse);
+  rpc GenerateQuestions(GenerateQuestionsRequest) returns (GenerateQuestionsResponse);
+}
+
+// Candidate entity
+message Candidate {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  int32 experience_years = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+// Interview entity
+message Interview {
+  string id = 1;
+  string candidate_id = 2;
+  string interviewer_id = 3;
+  string title = 4;
+  string description = 5;
+  string status = 6;
+  string scheduled_at = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  repeated string technologies = 10;
+  string level = 11;
+  string specialization = 12;
+  Candidate candidate = 13;
+}
+
+// Create Interview
+message CreateInterviewRequest {
+  string candidate_id = 1;
+  string interviewer_id = 2;
+  string title = 3;
+  string description = 4;
+  string scheduled_at = 5;
+  repeated string technologies = 6;
+  string level = 7;
+  string specialization = 8;
+}
+
+message CreateInterviewResponse {
+  common.Response response = 1;
+  Interview interview = 2;
+}
+
+// Get Interview
+message GetInterviewRequest {
+  string interview_id = 1;
+}
+
+message GetInterviewResponse {
+  common.Response response = 1;
+  Interview interview = 2;
+}
+
+// Get Interviews
+message GetInterviewsRequest {
+  string interviewer_id = 1;
+  common.Pagination pagination = 2;
+}
+
+message GetInterviewsResponse {
+  common.Response response = 1;
+  repeated Interview interviews = 2;
+  common.Pagination pagination = 3;
+}
+
+// Update Interview
+message UpdateInterviewRequest {
+  string interview_id = 1;
+  string title = 2;
+  string description = 3;
+  string status = 4;
+  string scheduled_at = 5;
+  repeated string technologies = 6;
+  string level = 7;
+  string specialization = 8;
+}
+
+message UpdateInterviewResponse {
+  common.Response response = 1;
+  Interview interview = 2;
+}
+
+// Delete Interview
+message DeleteInterviewRequest {
+  string interview_id = 1;
+}
+
+// Get Scheduled Interviews
+message GetScheduledInterviewsRequest {
+  string interviewer_id = 1;
+  string date = 2;
+}
+
+message GetScheduledInterviewsResponse {
+  common.Response response = 1;
+  repeated Interview interviews = 2;
+}
+
+// Generate Questions
+message GenerateQuestionsRequest {
+  string interview_id = 1;
+  repeated string technologies = 2;
+  string level = 3;
+  string specialization = 4;
+}
+
+message Question {
+  string id = 1;
+  string text = 2;
+  string category = 3;
+  string difficulty = 4;
+  string technology = 5;
+  repeated string tags = 6;
+}
+
+message GenerateQuestionsResponse {
+  common.Response response = 1;
+  repeated Question questions = 2;
+}
+
