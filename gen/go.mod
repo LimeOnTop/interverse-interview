@@ -1,16 +1,13 @@
-module github.com/inter-verse/services/interview-service
+module github.com/inter-verse/services/interview-service/gen
 
 go 1.24.0
 
 toolchain go1.24.2
 
 require (
-	github.com/google/uuid v1.6.0
-	github.com/inter-verse/services/interview-service/gen v0.0.0-00010101000000-000000000000
 	github.com/inter-verse/services/proto/gen v0.0.0-00010101000000-000000000000
-	github.com/joho/godotenv v1.5.1
-	github.com/lib/pq v1.10.9
 	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -18,9 +15,6 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
 )
 
-replace github.com/inter-verse/services/proto/gen => ../proto/gen
-
-replace github.com/inter-verse/services/interview-service/gen => ./gen
+replace github.com/inter-verse/services/proto/gen => ../../proto/gen
