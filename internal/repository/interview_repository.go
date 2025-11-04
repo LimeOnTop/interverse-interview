@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/inter-verse/services/interview-service/internal/models"
+	"github.com/inter-verse/interview-service/internal/models"
 )
 
 type InterviewRepository struct {

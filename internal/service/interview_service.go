@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/inter-verse/services/interview-service/internal/models"
-	"github.com/inter-verse/services/interview-service/internal/repository"
+	"github.com/inter-verse/interview-service/internal/models"
+	"github.com/inter-verse/interview-service/internal/repository"
 )
 
 type InterviewService struct {

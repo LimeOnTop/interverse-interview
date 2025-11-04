@@ -4,12 +4,12 @@ import (
 	"log"
 	"net"
 
-	pb "github.com/inter-verse/services/interview-service/gen"
-	"github.com/inter-verse/services/interview-service/internal/config"
-	"github.com/inter-verse/services/interview-service/internal/database"
-	"github.com/inter-verse/services/interview-service/internal/handler"
-	"github.com/inter-verse/services/interview-service/internal/repository"
-	"github.com/inter-verse/services/interview-service/internal/service"
+	pb "github.com/inter-verse/interview-service/gen"
+	"github.com/inter-verse/interview-service/internal/config"
+	"github.com/inter-verse/interview-service/internal/database"
+	"github.com/inter-verse/interview-service/internal/handler"
+	"github.com/inter-verse/interview-service/internal/repository"
+	"github.com/inter-verse/interview-service/internal/service"
 	"google.golang.org/grpc"
 )
 

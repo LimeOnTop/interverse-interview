@@ -2,13 +2,12 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.33.0
-// source: services/interview-service/proto/interview.proto
+// source: interview-service/proto/interview.proto
 
-package proto
+package gen
 
 import (
 	context "context"
-	common "github.com/inter-verse/services/proto/gen"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -39,7 +38,7 @@ type InterviewServiceClient interface {
 	GetInterview(ctx context.Context, in *GetInterviewRequest, opts ...grpc.CallOption) (*GetInterviewResponse, error)
 	GetInterviews(ctx context.Context, in *GetInterviewsRequest, opts ...grpc.CallOption) (*GetInterviewsResponse, error)
 	UpdateInterview(ctx context.Context, in *UpdateInterviewRequest, opts ...grpc.CallOption) (*UpdateInterviewResponse, error)
-	DeleteInterview(ctx context.Context, in *DeleteInterviewRequest, opts ...grpc.CallOption) (*common.Response, error)
+	DeleteInterview(ctx context.Context, in *DeleteInterviewRequest, opts ...grpc.CallOption) (*Response, error)
 	GetScheduledInterviews(ctx context.Context, in *GetScheduledInterviewsRequest, opts ...grpc.CallOption) (*GetScheduledInterviewsResponse, error)
 	GenerateQuestions(ctx context.Context, in *GenerateQuestionsRequest, opts ...grpc.CallOption) (*GenerateQuestionsResponse, error)
 }
@@ -92,9 +91,9 @@ func (c *interviewServiceClient) UpdateInterview(ctx context.Context, in *Update
 	return out, nil
 }
 
-func (c *interviewServiceClient) DeleteInterview(ctx context.Context, in *DeleteInterviewRequest, opts ...grpc.CallOption) (*common.Response, error) {
+func (c *interviewServiceClient) DeleteInterview(ctx context.Context, in *DeleteInterviewRequest, opts ...grpc.CallOption) (*Response, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(common.Response)
+	out := new(Response)
 	err := c.cc.Invoke(ctx, InterviewService_DeleteInterview_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -132,7 +131,7 @@ type InterviewServiceServer interface {
 	GetInterview(context.Context, *GetInterviewRequest) (*GetInterviewResponse, error)
 	GetInterviews(context.Context, *GetInterviewsRequest) (*GetInterviewsResponse, error)
 	UpdateInterview(context.Context, *UpdateInterviewRequest) (*UpdateInterviewResponse, error)
-	DeleteInterview(context.Context, *DeleteInterviewRequest) (*common.Response, error)
+	DeleteInterview(context.Context, *DeleteInterviewRequest) (*Response, error)
 	GetScheduledInterviews(context.Context, *GetScheduledInterviewsRequest) (*GetScheduledInterviewsResponse, error)
 	GenerateQuestions(context.Context, *GenerateQuestionsRequest) (*GenerateQuestionsResponse, error)
 	mustEmbedUnimplementedInterviewServiceServer()
@@ -157,7 +156,7 @@ func (UnimplementedInterviewServiceServer) GetInterviews(context.Context, *GetIn
 func (UnimplementedInterviewServiceServer) UpdateInterview(context.Context, *UpdateInterviewRequest) (*UpdateInterviewResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateInterview not implemented")
 }
-func (UnimplementedInterviewServiceServer) DeleteInterview(context.Context, *DeleteInterviewRequest) (*common.Response, error) {
+func (UnimplementedInterviewServiceServer) DeleteInterview(context.Context, *DeleteInterviewRequest) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteInterview not implemented")
 }
 func (UnimplementedInterviewServiceServer) GetScheduledInterviews(context.Context, *GetScheduledInterviewsRequest) (*GetScheduledInterviewsResponse, error) {
@@ -350,5 +349,5 @@ var InterviewService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "services/interview-service/proto/interview.proto",
+	Metadata: "interview-service/proto/interview.proto",
 }

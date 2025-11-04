@@ -2,12 +2,11 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.33.0
-// source: services/interview-service/proto/interview.proto
+// source: interview-service/proto/interview.proto
 
-package proto
+package gen
 
 import (
-	common "github.com/inter-verse/services/proto/gen"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,6 +20,128 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// Common response wrapper
+type Response struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Response) Reset() {
+	*x = Response{}
+	mi := &file_interview_service_proto_interview_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Response) ProtoMessage() {}
+
+func (x *Response) ProtoReflect() protoreflect.Message {
+	mi := &file_interview_service_proto_interview_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Response.ProtoReflect.Descriptor instead.
+func (*Response) Descriptor() ([]byte, []int) {
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Response) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *Response) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *Response) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+// Pagination
+type Pagination struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Total         int32                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Pagination) Reset() {
+	*x = Pagination{}
+	mi := &file_interview_service_proto_interview_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Pagination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Pagination) ProtoMessage() {}
+
+func (x *Pagination) ProtoReflect() protoreflect.Message {
+	mi := &file_interview_service_proto_interview_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Pagination.ProtoReflect.Descriptor instead.
+func (*Pagination) Descriptor() ([]byte, []int) {
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Pagination) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *Pagination) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *Pagination) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
 
 // Candidate entity
 type Candidate struct {
@@ -38,7 +159,7 @@ type Candidate struct {
 
 func (x *Candidate) Reset() {
 	*x = Candidate{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[0]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -50,7 +171,7 @@ func (x *Candidate) String() string {
 func (*Candidate) ProtoMessage() {}
 
 func (x *Candidate) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[0]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -63,7 +184,7 @@ func (x *Candidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Candidate.ProtoReflect.Descriptor instead.
 func (*Candidate) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{0}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Candidate) GetId() string {
@@ -137,7 +258,7 @@ type Interview struct {
 
 func (x *Interview) Reset() {
 	*x = Interview{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[1]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +270,7 @@ func (x *Interview) String() string {
 func (*Interview) ProtoMessage() {}
 
 func (x *Interview) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[1]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +283,7 @@ func (x *Interview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Interview.ProtoReflect.Descriptor instead.
 func (*Interview) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{1}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Interview) GetId() string {
@@ -273,7 +394,7 @@ type CreateInterviewRequest struct {
 
 func (x *CreateInterviewRequest) Reset() {
 	*x = CreateInterviewRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[2]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -285,7 +406,7 @@ func (x *CreateInterviewRequest) String() string {
 func (*CreateInterviewRequest) ProtoMessage() {}
 
 func (x *CreateInterviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[2]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -298,7 +419,7 @@ func (x *CreateInterviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInterviewRequest.ProtoReflect.Descriptor instead.
 func (*CreateInterviewRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{2}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateInterviewRequest) GetCandidateId() string {
@@ -359,7 +480,7 @@ func (x *CreateInterviewRequest) GetSpecialization() string {
 
 type CreateInterviewResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Interview     *Interview             `protobuf:"bytes,2,opt,name=interview,proto3" json:"interview,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -367,7 +488,7 @@ type CreateInterviewResponse struct {
 
 func (x *CreateInterviewResponse) Reset() {
 	*x = CreateInterviewResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[3]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -379,7 +500,7 @@ func (x *CreateInterviewResponse) String() string {
 func (*CreateInterviewResponse) ProtoMessage() {}
 
 func (x *CreateInterviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[3]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -392,10 +513,10 @@ func (x *CreateInterviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInterviewResponse.ProtoReflect.Descriptor instead.
 func (*CreateInterviewResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{3}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateInterviewResponse) GetResponse() *common.Response {
+func (x *CreateInterviewResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -419,7 +540,7 @@ type GetInterviewRequest struct {
 
 func (x *GetInterviewRequest) Reset() {
 	*x = GetInterviewRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[4]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +552,7 @@ func (x *GetInterviewRequest) String() string {
 func (*GetInterviewRequest) ProtoMessage() {}
 
 func (x *GetInterviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[4]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +565,7 @@ func (x *GetInterviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInterviewRequest.ProtoReflect.Descriptor instead.
 func (*GetInterviewRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{4}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetInterviewRequest) GetInterviewId() string {
@@ -456,7 +577,7 @@ func (x *GetInterviewRequest) GetInterviewId() string {
 
 type GetInterviewResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Interview     *Interview             `protobuf:"bytes,2,opt,name=interview,proto3" json:"interview,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -464,7 +585,7 @@ type GetInterviewResponse struct {
 
 func (x *GetInterviewResponse) Reset() {
 	*x = GetInterviewResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[5]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +597,7 @@ func (x *GetInterviewResponse) String() string {
 func (*GetInterviewResponse) ProtoMessage() {}
 
 func (x *GetInterviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[5]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,10 +610,10 @@ func (x *GetInterviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInterviewResponse.ProtoReflect.Descriptor instead.
 func (*GetInterviewResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{5}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetInterviewResponse) GetResponse() *common.Response {
+func (x *GetInterviewResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -510,14 +631,14 @@ func (x *GetInterviewResponse) GetInterview() *Interview {
 type GetInterviewsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	InterviewerId string                 `protobuf:"bytes,1,opt,name=interviewer_id,json=interviewerId,proto3" json:"interviewer_id,omitempty"`
-	Pagination    *common.Pagination     `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Pagination    *Pagination            `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetInterviewsRequest) Reset() {
 	*x = GetInterviewsRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[6]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +650,7 @@ func (x *GetInterviewsRequest) String() string {
 func (*GetInterviewsRequest) ProtoMessage() {}
 
 func (x *GetInterviewsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[6]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +663,7 @@ func (x *GetInterviewsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInterviewsRequest.ProtoReflect.Descriptor instead.
 func (*GetInterviewsRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{6}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetInterviewsRequest) GetInterviewerId() string {
@@ -552,7 +673,7 @@ func (x *GetInterviewsRequest) GetInterviewerId() string {
 	return ""
 }
 
-func (x *GetInterviewsRequest) GetPagination() *common.Pagination {
+func (x *GetInterviewsRequest) GetPagination() *Pagination {
 	if x != nil {
 		return x.Pagination
 	}
@@ -561,16 +682,16 @@ func (x *GetInterviewsRequest) GetPagination() *common.Pagination {
 
 type GetInterviewsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Interviews    []*Interview           `protobuf:"bytes,2,rep,name=interviews,proto3" json:"interviews,omitempty"`
-	Pagination    *common.Pagination     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Pagination    *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetInterviewsResponse) Reset() {
 	*x = GetInterviewsResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[7]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -582,7 +703,7 @@ func (x *GetInterviewsResponse) String() string {
 func (*GetInterviewsResponse) ProtoMessage() {}
 
 func (x *GetInterviewsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[7]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,10 +716,10 @@ func (x *GetInterviewsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInterviewsResponse.ProtoReflect.Descriptor instead.
 func (*GetInterviewsResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{7}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *GetInterviewsResponse) GetResponse() *common.Response {
+func (x *GetInterviewsResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -612,7 +733,7 @@ func (x *GetInterviewsResponse) GetInterviews() []*Interview {
 	return nil
 }
 
-func (x *GetInterviewsResponse) GetPagination() *common.Pagination {
+func (x *GetInterviewsResponse) GetPagination() *Pagination {
 	if x != nil {
 		return x.Pagination
 	}
@@ -636,7 +757,7 @@ type UpdateInterviewRequest struct {
 
 func (x *UpdateInterviewRequest) Reset() {
 	*x = UpdateInterviewRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[8]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +769,7 @@ func (x *UpdateInterviewRequest) String() string {
 func (*UpdateInterviewRequest) ProtoMessage() {}
 
 func (x *UpdateInterviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[8]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +782,7 @@ func (x *UpdateInterviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInterviewRequest.ProtoReflect.Descriptor instead.
 func (*UpdateInterviewRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{8}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateInterviewRequest) GetInterviewId() string {
@@ -722,7 +843,7 @@ func (x *UpdateInterviewRequest) GetSpecialization() string {
 
 type UpdateInterviewResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Interview     *Interview             `protobuf:"bytes,2,opt,name=interview,proto3" json:"interview,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -730,7 +851,7 @@ type UpdateInterviewResponse struct {
 
 func (x *UpdateInterviewResponse) Reset() {
 	*x = UpdateInterviewResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[9]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -742,7 +863,7 @@ func (x *UpdateInterviewResponse) String() string {
 func (*UpdateInterviewResponse) ProtoMessage() {}
 
 func (x *UpdateInterviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[9]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -755,10 +876,10 @@ func (x *UpdateInterviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInterviewResponse.ProtoReflect.Descriptor instead.
 func (*UpdateInterviewResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{9}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *UpdateInterviewResponse) GetResponse() *common.Response {
+func (x *UpdateInterviewResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -782,7 +903,7 @@ type DeleteInterviewRequest struct {
 
 func (x *DeleteInterviewRequest) Reset() {
 	*x = DeleteInterviewRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[10]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -794,7 +915,7 @@ func (x *DeleteInterviewRequest) String() string {
 func (*DeleteInterviewRequest) ProtoMessage() {}
 
 func (x *DeleteInterviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[10]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -807,7 +928,7 @@ func (x *DeleteInterviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteInterviewRequest.ProtoReflect.Descriptor instead.
 func (*DeleteInterviewRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{10}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteInterviewRequest) GetInterviewId() string {
@@ -828,7 +949,7 @@ type GetScheduledInterviewsRequest struct {
 
 func (x *GetScheduledInterviewsRequest) Reset() {
 	*x = GetScheduledInterviewsRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[11]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +961,7 @@ func (x *GetScheduledInterviewsRequest) String() string {
 func (*GetScheduledInterviewsRequest) ProtoMessage() {}
 
 func (x *GetScheduledInterviewsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[11]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +974,7 @@ func (x *GetScheduledInterviewsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScheduledInterviewsRequest.ProtoReflect.Descriptor instead.
 func (*GetScheduledInterviewsRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{11}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetScheduledInterviewsRequest) GetInterviewerId() string {
@@ -872,7 +993,7 @@ func (x *GetScheduledInterviewsRequest) GetDate() string {
 
 type GetScheduledInterviewsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Interviews    []*Interview           `protobuf:"bytes,2,rep,name=interviews,proto3" json:"interviews,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -880,7 +1001,7 @@ type GetScheduledInterviewsResponse struct {
 
 func (x *GetScheduledInterviewsResponse) Reset() {
 	*x = GetScheduledInterviewsResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[12]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +1013,7 @@ func (x *GetScheduledInterviewsResponse) String() string {
 func (*GetScheduledInterviewsResponse) ProtoMessage() {}
 
 func (x *GetScheduledInterviewsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[12]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,10 +1026,10 @@ func (x *GetScheduledInterviewsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScheduledInterviewsResponse.ProtoReflect.Descriptor instead.
 func (*GetScheduledInterviewsResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{12}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *GetScheduledInterviewsResponse) GetResponse() *common.Response {
+func (x *GetScheduledInterviewsResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -935,7 +1056,7 @@ type GenerateQuestionsRequest struct {
 
 func (x *GenerateQuestionsRequest) Reset() {
 	*x = GenerateQuestionsRequest{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[13]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1068,7 @@ func (x *GenerateQuestionsRequest) String() string {
 func (*GenerateQuestionsRequest) ProtoMessage() {}
 
 func (x *GenerateQuestionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[13]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1081,7 @@ func (x *GenerateQuestionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateQuestionsRequest.ProtoReflect.Descriptor instead.
 func (*GenerateQuestionsRequest) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{13}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GenerateQuestionsRequest) GetInterviewId() string {
@@ -1005,7 +1126,7 @@ type Question struct {
 
 func (x *Question) Reset() {
 	*x = Question{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[14]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1138,7 @@ func (x *Question) String() string {
 func (*Question) ProtoMessage() {}
 
 func (x *Question) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[14]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1151,7 @@ func (x *Question) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Question.ProtoReflect.Descriptor instead.
 func (*Question) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{14}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Question) GetId() string {
@@ -1077,7 +1198,7 @@ func (x *Question) GetTags() []string {
 
 type GenerateQuestionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *common.Response       `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	Response      *Response              `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
 	Questions     []*Question            `protobuf:"bytes,2,rep,name=questions,proto3" json:"questions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1085,7 +1206,7 @@ type GenerateQuestionsResponse struct {
 
 func (x *GenerateQuestionsResponse) Reset() {
 	*x = GenerateQuestionsResponse{}
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[15]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1097,7 +1218,7 @@ func (x *GenerateQuestionsResponse) String() string {
 func (*GenerateQuestionsResponse) ProtoMessage() {}
 
 func (x *GenerateQuestionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_services_interview_service_proto_interview_proto_msgTypes[15]
+	mi := &file_interview_service_proto_interview_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1110,10 +1231,10 @@ func (x *GenerateQuestionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateQuestionsResponse.ProtoReflect.Descriptor instead.
 func (*GenerateQuestionsResponse) Descriptor() ([]byte, []int) {
-	return file_services_interview_service_proto_interview_proto_rawDescGZIP(), []int{15}
+	return file_interview_service_proto_interview_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *GenerateQuestionsResponse) GetResponse() *common.Response {
+func (x *GenerateQuestionsResponse) GetResponse() *Response {
 	if x != nil {
 		return x.Response
 	}
@@ -1127,11 +1248,20 @@ func (x *GenerateQuestionsResponse) GetQuestions() []*Question {
 	return nil
 }
 
-var File_services_interview_service_proto_interview_proto protoreflect.FileDescriptor
+var File_interview_service_proto_interview_proto protoreflect.FileDescriptor
 
-const file_services_interview_service_proto_interview_proto_rawDesc = "" +
+const file_interview_service_proto_interview_proto_rawDesc = "" +
 	"\n" +
-	"0services/interview-service/proto/interview.proto\x12\tinterview\x1a\x1bservices/proto/common.proto\"\xc4\x01\n" +
+	"'interview-service/proto/interview.proto\x12\tinterview\"T\n" +
+	"\bResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"L\n" +
+	"\n" +
+	"Pagination\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\xc4\x01\n" +
 	"\tCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -1167,27 +1297,27 @@ const file_services_interview_service_proto_interview_proto_rawDesc = "" +
 	"\fscheduled_at\x18\x05 \x01(\tR\vscheduledAt\x12\"\n" +
 	"\ftechnologies\x18\x06 \x03(\tR\ftechnologies\x12\x14\n" +
 	"\x05level\x18\a \x01(\tR\x05level\x12&\n" +
-	"\x0especialization\x18\b \x01(\tR\x0especialization\"{\n" +
-	"\x17CreateInterviewResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x122\n" +
+	"\x0especialization\x18\b \x01(\tR\x0especialization\"~\n" +
+	"\x17CreateInterviewResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x122\n" +
 	"\tinterview\x18\x02 \x01(\v2\x14.interview.InterviewR\tinterview\"8\n" +
 	"\x13GetInterviewRequest\x12!\n" +
-	"\finterview_id\x18\x01 \x01(\tR\vinterviewId\"x\n" +
-	"\x14GetInterviewResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x122\n" +
-	"\tinterview\x18\x02 \x01(\v2\x14.interview.InterviewR\tinterview\"q\n" +
+	"\finterview_id\x18\x01 \x01(\tR\vinterviewId\"{\n" +
+	"\x14GetInterviewResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x122\n" +
+	"\tinterview\x18\x02 \x01(\v2\x14.interview.InterviewR\tinterview\"t\n" +
 	"\x14GetInterviewsRequest\x12%\n" +
-	"\x0einterviewer_id\x18\x01 \x01(\tR\rinterviewerId\x122\n" +
+	"\x0einterviewer_id\x18\x01 \x01(\tR\rinterviewerId\x125\n" +
 	"\n" +
-	"pagination\x18\x02 \x01(\v2\x12.common.PaginationR\n" +
-	"pagination\"\xaf\x01\n" +
-	"\x15GetInterviewsResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x124\n" +
+	"pagination\x18\x02 \x01(\v2\x15.interview.PaginationR\n" +
+	"pagination\"\xb5\x01\n" +
+	"\x15GetInterviewsResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x124\n" +
 	"\n" +
 	"interviews\x18\x02 \x03(\v2\x14.interview.InterviewR\n" +
-	"interviews\x122\n" +
+	"interviews\x125\n" +
 	"\n" +
-	"pagination\x18\x03 \x01(\v2\x12.common.PaginationR\n" +
+	"pagination\x18\x03 \x01(\v2\x15.interview.PaginationR\n" +
 	"pagination\"\x90\x02\n" +
 	"\x16UpdateInterviewRequest\x12!\n" +
 	"\finterview_id\x18\x01 \x01(\tR\vinterviewId\x12\x14\n" +
@@ -1197,17 +1327,17 @@ const file_services_interview_service_proto_interview_proto_rawDesc = "" +
 	"\fscheduled_at\x18\x05 \x01(\tR\vscheduledAt\x12\"\n" +
 	"\ftechnologies\x18\x06 \x03(\tR\ftechnologies\x12\x14\n" +
 	"\x05level\x18\a \x01(\tR\x05level\x12&\n" +
-	"\x0especialization\x18\b \x01(\tR\x0especialization\"{\n" +
-	"\x17UpdateInterviewResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x122\n" +
+	"\x0especialization\x18\b \x01(\tR\x0especialization\"~\n" +
+	"\x17UpdateInterviewResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x122\n" +
 	"\tinterview\x18\x02 \x01(\v2\x14.interview.InterviewR\tinterview\";\n" +
 	"\x16DeleteInterviewRequest\x12!\n" +
 	"\finterview_id\x18\x01 \x01(\tR\vinterviewId\"Z\n" +
 	"\x1dGetScheduledInterviewsRequest\x12%\n" +
 	"\x0einterviewer_id\x18\x01 \x01(\tR\rinterviewerId\x12\x12\n" +
-	"\x04date\x18\x02 \x01(\tR\x04date\"\x84\x01\n" +
-	"\x1eGetScheduledInterviewsResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x124\n" +
+	"\x04date\x18\x02 \x01(\tR\x04date\"\x87\x01\n" +
+	"\x1eGetScheduledInterviewsResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x124\n" +
 	"\n" +
 	"interviews\x18\x02 \x03(\v2\x14.interview.InterviewR\n" +
 	"interviews\"\x9f\x01\n" +
@@ -1226,82 +1356,82 @@ const file_services_interview_service_proto_interview_proto_rawDesc = "" +
 	"\n" +
 	"technology\x18\x05 \x01(\tR\n" +
 	"technology\x12\x12\n" +
-	"\x04tags\x18\x06 \x03(\tR\x04tags\"|\n" +
-	"\x19GenerateQuestionsResponse\x12,\n" +
-	"\bresponse\x18\x01 \x01(\v2\x10.common.ResponseR\bresponse\x121\n" +
-	"\tquestions\x18\x02 \x03(\v2\x13.interview.QuestionR\tquestions2\x82\x05\n" +
+	"\x04tags\x18\x06 \x03(\tR\x04tags\"\x7f\n" +
+	"\x19GenerateQuestionsResponse\x12/\n" +
+	"\bresponse\x18\x01 \x01(\v2\x13.interview.ResponseR\bresponse\x121\n" +
+	"\tquestions\x18\x02 \x03(\v2\x13.interview.QuestionR\tquestions2\x85\x05\n" +
 	"\x10InterviewService\x12X\n" +
 	"\x0fCreateInterview\x12!.interview.CreateInterviewRequest\x1a\".interview.CreateInterviewResponse\x12O\n" +
 	"\fGetInterview\x12\x1e.interview.GetInterviewRequest\x1a\x1f.interview.GetInterviewResponse\x12R\n" +
 	"\rGetInterviews\x12\x1f.interview.GetInterviewsRequest\x1a .interview.GetInterviewsResponse\x12X\n" +
-	"\x0fUpdateInterview\x12!.interview.UpdateInterviewRequest\x1a\".interview.UpdateInterviewResponse\x12F\n" +
-	"\x0fDeleteInterview\x12!.interview.DeleteInterviewRequest\x1a\x10.common.Response\x12m\n" +
+	"\x0fUpdateInterview\x12!.interview.UpdateInterviewRequest\x1a\".interview.UpdateInterviewResponse\x12I\n" +
+	"\x0fDeleteInterview\x12!.interview.DeleteInterviewRequest\x1a\x13.interview.Response\x12m\n" +
 	"\x16GetScheduledInterviews\x12(.interview.GetScheduledInterviewsRequest\x1a).interview.GetScheduledInterviewsResponse\x12^\n" +
-	"\x11GenerateQuestions\x12#.interview.GenerateQuestionsRequest\x1a$.interview.GenerateQuestionsResponseB9Z7github.com/inter-verse/services/interview-service/protob\x06proto3"
+	"\x11GenerateQuestions\x12#.interview.GenerateQuestionsRequest\x1a$.interview.GenerateQuestionsResponseB.Z,github.com/inter-verse/interview-service/genb\x06proto3"
 
 var (
-	file_services_interview_service_proto_interview_proto_rawDescOnce sync.Once
-	file_services_interview_service_proto_interview_proto_rawDescData []byte
+	file_interview_service_proto_interview_proto_rawDescOnce sync.Once
+	file_interview_service_proto_interview_proto_rawDescData []byte
 )
 
-func file_services_interview_service_proto_interview_proto_rawDescGZIP() []byte {
-	file_services_interview_service_proto_interview_proto_rawDescOnce.Do(func() {
-		file_services_interview_service_proto_interview_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_services_interview_service_proto_interview_proto_rawDesc), len(file_services_interview_service_proto_interview_proto_rawDesc)))
+func file_interview_service_proto_interview_proto_rawDescGZIP() []byte {
+	file_interview_service_proto_interview_proto_rawDescOnce.Do(func() {
+		file_interview_service_proto_interview_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_interview_service_proto_interview_proto_rawDesc), len(file_interview_service_proto_interview_proto_rawDesc)))
 	})
-	return file_services_interview_service_proto_interview_proto_rawDescData
+	return file_interview_service_proto_interview_proto_rawDescData
 }
 
-var file_services_interview_service_proto_interview_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
-var file_services_interview_service_proto_interview_proto_goTypes = []any{
-	(*Candidate)(nil),                      // 0: interview.Candidate
-	(*Interview)(nil),                      // 1: interview.Interview
-	(*CreateInterviewRequest)(nil),         // 2: interview.CreateInterviewRequest
-	(*CreateInterviewResponse)(nil),        // 3: interview.CreateInterviewResponse
-	(*GetInterviewRequest)(nil),            // 4: interview.GetInterviewRequest
-	(*GetInterviewResponse)(nil),           // 5: interview.GetInterviewResponse
-	(*GetInterviewsRequest)(nil),           // 6: interview.GetInterviewsRequest
-	(*GetInterviewsResponse)(nil),          // 7: interview.GetInterviewsResponse
-	(*UpdateInterviewRequest)(nil),         // 8: interview.UpdateInterviewRequest
-	(*UpdateInterviewResponse)(nil),        // 9: interview.UpdateInterviewResponse
-	(*DeleteInterviewRequest)(nil),         // 10: interview.DeleteInterviewRequest
-	(*GetScheduledInterviewsRequest)(nil),  // 11: interview.GetScheduledInterviewsRequest
-	(*GetScheduledInterviewsResponse)(nil), // 12: interview.GetScheduledInterviewsResponse
-	(*GenerateQuestionsRequest)(nil),       // 13: interview.GenerateQuestionsRequest
-	(*Question)(nil),                       // 14: interview.Question
-	(*GenerateQuestionsResponse)(nil),      // 15: interview.GenerateQuestionsResponse
-	(*common.Response)(nil),                // 16: common.Response
-	(*common.Pagination)(nil),              // 17: common.Pagination
+var file_interview_service_proto_interview_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_interview_service_proto_interview_proto_goTypes = []any{
+	(*Response)(nil),                       // 0: interview.Response
+	(*Pagination)(nil),                     // 1: interview.Pagination
+	(*Candidate)(nil),                      // 2: interview.Candidate
+	(*Interview)(nil),                      // 3: interview.Interview
+	(*CreateInterviewRequest)(nil),         // 4: interview.CreateInterviewRequest
+	(*CreateInterviewResponse)(nil),        // 5: interview.CreateInterviewResponse
+	(*GetInterviewRequest)(nil),            // 6: interview.GetInterviewRequest
+	(*GetInterviewResponse)(nil),           // 7: interview.GetInterviewResponse
+	(*GetInterviewsRequest)(nil),           // 8: interview.GetInterviewsRequest
+	(*GetInterviewsResponse)(nil),          // 9: interview.GetInterviewsResponse
+	(*UpdateInterviewRequest)(nil),         // 10: interview.UpdateInterviewRequest
+	(*UpdateInterviewResponse)(nil),        // 11: interview.UpdateInterviewResponse
+	(*DeleteInterviewRequest)(nil),         // 12: interview.DeleteInterviewRequest
+	(*GetScheduledInterviewsRequest)(nil),  // 13: interview.GetScheduledInterviewsRequest
+	(*GetScheduledInterviewsResponse)(nil), // 14: interview.GetScheduledInterviewsResponse
+	(*GenerateQuestionsRequest)(nil),       // 15: interview.GenerateQuestionsRequest
+	(*Question)(nil),                       // 16: interview.Question
+	(*GenerateQuestionsResponse)(nil),      // 17: interview.GenerateQuestionsResponse
 }
-var file_services_interview_service_proto_interview_proto_depIdxs = []int32{
-	0,  // 0: interview.Interview.candidate:type_name -> interview.Candidate
-	16, // 1: interview.CreateInterviewResponse.response:type_name -> common.Response
-	1,  // 2: interview.CreateInterviewResponse.interview:type_name -> interview.Interview
-	16, // 3: interview.GetInterviewResponse.response:type_name -> common.Response
-	1,  // 4: interview.GetInterviewResponse.interview:type_name -> interview.Interview
-	17, // 5: interview.GetInterviewsRequest.pagination:type_name -> common.Pagination
-	16, // 6: interview.GetInterviewsResponse.response:type_name -> common.Response
-	1,  // 7: interview.GetInterviewsResponse.interviews:type_name -> interview.Interview
-	17, // 8: interview.GetInterviewsResponse.pagination:type_name -> common.Pagination
-	16, // 9: interview.UpdateInterviewResponse.response:type_name -> common.Response
-	1,  // 10: interview.UpdateInterviewResponse.interview:type_name -> interview.Interview
-	16, // 11: interview.GetScheduledInterviewsResponse.response:type_name -> common.Response
-	1,  // 12: interview.GetScheduledInterviewsResponse.interviews:type_name -> interview.Interview
-	16, // 13: interview.GenerateQuestionsResponse.response:type_name -> common.Response
-	14, // 14: interview.GenerateQuestionsResponse.questions:type_name -> interview.Question
-	2,  // 15: interview.InterviewService.CreateInterview:input_type -> interview.CreateInterviewRequest
-	4,  // 16: interview.InterviewService.GetInterview:input_type -> interview.GetInterviewRequest
-	6,  // 17: interview.InterviewService.GetInterviews:input_type -> interview.GetInterviewsRequest
-	8,  // 18: interview.InterviewService.UpdateInterview:input_type -> interview.UpdateInterviewRequest
-	10, // 19: interview.InterviewService.DeleteInterview:input_type -> interview.DeleteInterviewRequest
-	11, // 20: interview.InterviewService.GetScheduledInterviews:input_type -> interview.GetScheduledInterviewsRequest
-	13, // 21: interview.InterviewService.GenerateQuestions:input_type -> interview.GenerateQuestionsRequest
-	3,  // 22: interview.InterviewService.CreateInterview:output_type -> interview.CreateInterviewResponse
-	5,  // 23: interview.InterviewService.GetInterview:output_type -> interview.GetInterviewResponse
-	7,  // 24: interview.InterviewService.GetInterviews:output_type -> interview.GetInterviewsResponse
-	9,  // 25: interview.InterviewService.UpdateInterview:output_type -> interview.UpdateInterviewResponse
-	16, // 26: interview.InterviewService.DeleteInterview:output_type -> common.Response
-	12, // 27: interview.InterviewService.GetScheduledInterviews:output_type -> interview.GetScheduledInterviewsResponse
-	15, // 28: interview.InterviewService.GenerateQuestions:output_type -> interview.GenerateQuestionsResponse
+var file_interview_service_proto_interview_proto_depIdxs = []int32{
+	2,  // 0: interview.Interview.candidate:type_name -> interview.Candidate
+	0,  // 1: interview.CreateInterviewResponse.response:type_name -> interview.Response
+	3,  // 2: interview.CreateInterviewResponse.interview:type_name -> interview.Interview
+	0,  // 3: interview.GetInterviewResponse.response:type_name -> interview.Response
+	3,  // 4: interview.GetInterviewResponse.interview:type_name -> interview.Interview
+	1,  // 5: interview.GetInterviewsRequest.pagination:type_name -> interview.Pagination
+	0,  // 6: interview.GetInterviewsResponse.response:type_name -> interview.Response
+	3,  // 7: interview.GetInterviewsResponse.interviews:type_name -> interview.Interview
+	1,  // 8: interview.GetInterviewsResponse.pagination:type_name -> interview.Pagination
+	0,  // 9: interview.UpdateInterviewResponse.response:type_name -> interview.Response
+	3,  // 10: interview.UpdateInterviewResponse.interview:type_name -> interview.Interview
+	0,  // 11: interview.GetScheduledInterviewsResponse.response:type_name -> interview.Response
+	3,  // 12: interview.GetScheduledInterviewsResponse.interviews:type_name -> interview.Interview
+	0,  // 13: interview.GenerateQuestionsResponse.response:type_name -> interview.Response
+	16, // 14: interview.GenerateQuestionsResponse.questions:type_name -> interview.Question
+	4,  // 15: interview.InterviewService.CreateInterview:input_type -> interview.CreateInterviewRequest
+	6,  // 16: interview.InterviewService.GetInterview:input_type -> interview.GetInterviewRequest
+	8,  // 17: interview.InterviewService.GetInterviews:input_type -> interview.GetInterviewsRequest
+	10, // 18: interview.InterviewService.UpdateInterview:input_type -> interview.UpdateInterviewRequest
+	12, // 19: interview.InterviewService.DeleteInterview:input_type -> interview.DeleteInterviewRequest
+	13, // 20: interview.InterviewService.GetScheduledInterviews:input_type -> interview.GetScheduledInterviewsRequest
+	15, // 21: interview.InterviewService.GenerateQuestions:input_type -> interview.GenerateQuestionsRequest
+	5,  // 22: interview.InterviewService.CreateInterview:output_type -> interview.CreateInterviewResponse
+	7,  // 23: interview.InterviewService.GetInterview:output_type -> interview.GetInterviewResponse
+	9,  // 24: interview.InterviewService.GetInterviews:output_type -> interview.GetInterviewsResponse
+	11, // 25: interview.InterviewService.UpdateInterview:output_type -> interview.UpdateInterviewResponse
+	0,  // 26: interview.InterviewService.DeleteInterview:output_type -> interview.Response
+	14, // 27: interview.InterviewService.GetScheduledInterviews:output_type -> interview.GetScheduledInterviewsResponse
+	17, // 28: interview.InterviewService.GenerateQuestions:output_type -> interview.GenerateQuestionsResponse
 	22, // [22:29] is the sub-list for method output_type
 	15, // [15:22] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
@@ -1309,26 +1439,26 @@ var file_services_interview_service_proto_interview_proto_depIdxs = []int32{
 	0,  // [0:15] is the sub-list for field type_name
 }
 
-func init() { file_services_interview_service_proto_interview_proto_init() }
-func file_services_interview_service_proto_interview_proto_init() {
-	if File_services_interview_service_proto_interview_proto != nil {
+func init() { file_interview_service_proto_interview_proto_init() }
+func file_interview_service_proto_interview_proto_init() {
+	if File_interview_service_proto_interview_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_services_interview_service_proto_interview_proto_rawDesc), len(file_services_interview_service_proto_interview_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_interview_service_proto_interview_proto_rawDesc), len(file_interview_service_proto_interview_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_services_interview_service_proto_interview_proto_goTypes,
-		DependencyIndexes: file_services_interview_service_proto_interview_proto_depIdxs,
-		MessageInfos:      file_services_interview_service_proto_interview_proto_msgTypes,
+		GoTypes:           file_interview_service_proto_interview_proto_goTypes,
+		DependencyIndexes: file_interview_service_proto_interview_proto_depIdxs,
+		MessageInfos:      file_interview_service_proto_interview_proto_msgTypes,
 	}.Build()
-	File_services_interview_service_proto_interview_proto = out.File
-	file_services_interview_service_proto_interview_proto_goTypes = nil
-	file_services_interview_service_proto_interview_proto_depIdxs = nil
+	File_interview_service_proto_interview_proto = out.File
+	file_interview_service_proto_interview_proto_goTypes = nil
+	file_interview_service_proto_interview_proto_depIdxs = nil
 }

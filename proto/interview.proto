@@ -2,9 +2,21 @@ syntax = "proto3";
 
 package interview;
 
-import "services/proto/common.proto";
+option go_package = "github.com/inter-verse/interview-service/gen";
 
-option go_package = "github.com/inter-verse/services/interview-service/proto";
+// Common response wrapper
+message Response {
+  bool success = 1;
+  string message = 2;
+  string error = 3;
+}
+
+// Pagination
+message Pagination {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 total = 3;
+}
 
 // Interview service definition
 service InterviewService {
@@ -12,7 +24,7 @@ service InterviewService {
   rpc GetInterview(GetInterviewRequest) returns (GetInterviewResponse);
   rpc GetInterviews(GetInterviewsRequest) returns (GetInterviewsResponse);
   rpc UpdateInterview(UpdateInterviewRequest) returns (UpdateInterviewResponse);
-  rpc DeleteInterview(DeleteInterviewRequest) returns (common.Response);
+  rpc DeleteInterview(DeleteInterviewRequest) returns (Response);
   rpc GetScheduledInterviews(GetScheduledInterviewsRequest) returns (GetScheduledInterviewsResponse);
   rpc GenerateQuestions(GenerateQuestionsRequest) returns (GenerateQuestionsResponse);
 }
@@ -58,7 +70,7 @@ message CreateInterviewRequest {
 }
 
 message CreateInterviewResponse {
-  common.Response response = 1;
+  Response response = 1;
   Interview interview = 2;
 }
 
@@ -68,20 +80,20 @@ message GetInterviewRequest {
 }
 
 message GetInterviewResponse {
-  common.Response response = 1;
+  Response response = 1;
   Interview interview = 2;
 }
 
 // Get Interviews
 message GetInterviewsRequest {
   string interviewer_id = 1;
-  common.Pagination pagination = 2;
+  Pagination pagination = 2;
 }
 
 message GetInterviewsResponse {
-  common.Response response = 1;
+  Response response = 1;
   repeated Interview interviews = 2;
-  common.Pagination pagination = 3;
+  Pagination pagination = 3;
 }
 
 // Update Interview
@@ -97,7 +109,7 @@ message UpdateInterviewRequest {
 }
 
 message UpdateInterviewResponse {
-  common.Response response = 1;
+  Response response = 1;
   Interview interview = 2;
 }
 
@@ -113,7 +125,7 @@ message GetScheduledInterviewsRequest {
 }
 
 message GetScheduledInterviewsResponse {
-  common.Response response = 1;
+  Response response = 1;
   repeated Interview interviews = 2;
 }
 
@@ -135,7 +147,6 @@ message Question {
 }
 
 message GenerateQuestionsResponse {
-  common.Response response = 1;
+  Response response = 1;
   repeated Question questions = 2;
 }
-

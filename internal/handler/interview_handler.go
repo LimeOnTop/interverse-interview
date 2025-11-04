@@ -6,10 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	pb "github.com/inter-verse/services/interview-service/gen"
-	"github.com/inter-verse/services/interview-service/internal/models"
-	"github.com/inter-verse/services/interview-service/internal/service"
-	common "github.com/inter-verse/services/proto/gen"
+	pb "github.com/inter-verse/interview-service/gen"
+	"github.com/inter-verse/interview-service/internal/models"
+	"github.com/inter-verse/interview-service/internal/service"
 )
 
 type InterviewHandler struct {
@@ -28,7 +27,7 @@ func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateIn
 	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
 	if err != nil {
 		return &pb.CreateInterviewResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   "Invalid scheduled time format",
 			},
@@ -49,7 +48,7 @@ func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateIn
 	createdInterview, err := h.interviewService.CreateInterview(interview, req.Technologies)
 	if err != nil {
 		return &pb.CreateInterviewResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -57,7 +56,7 @@ func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateIn
 	}
 
 	return &pb.CreateInterviewResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 			Message: "Interview created successfully",
 		},
@@ -82,7 +81,7 @@ func (h *InterviewHandler) GetInterview(ctx context.Context, req *pb.GetIntervie
 	interview, err := h.interviewService.GetInterviewByID(req.InterviewId)
 	if err != nil {
 		return &pb.GetInterviewResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -90,7 +89,7 @@ func (h *InterviewHandler) GetInterview(ctx context.Context, req *pb.GetIntervie
 	}
 
 	return &pb.GetInterviewResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 		},
 		Interview: &pb.Interview{
@@ -121,7 +120,7 @@ func (h *InterviewHandler) GetInterviews(ctx context.Context, req *pb.GetIntervi
 	interviews, err := h.interviewService.GetInterviewsByInterviewer(req.InterviewerId, limit, offset)
 	if err != nil {
 		return &pb.GetInterviewsResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -174,11 +173,11 @@ func (h *InterviewHandler) GetInterviews(ctx context.Context, req *pb.GetIntervi
 	}
 
 	return &pb.GetInterviewsResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 		},
 		Interviews: pbInterviews,
-		Pagination: &common.Pagination{
+		Pagination: &pb.Pagination{
 			Page:  req.Pagination.Page,
 			Limit: req.Pagination.Limit,
 			Total: int32(len(pbInterviews)),
@@ -191,7 +190,7 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
 	if err != nil {
 		return &pb.UpdateInterviewResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   "Invalid scheduled time format",
 			},
@@ -211,7 +210,7 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 	updatedInterview, err := h.interviewService.UpdateInterview(interview)
 	if err != nil {
 		return &pb.UpdateInterviewResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -219,7 +218,7 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 	}
 
 	return &pb.UpdateInterviewResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 			Message: "Interview updated successfully",
 		},
@@ -239,16 +238,16 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 	}, nil
 }
 
-func (h *InterviewHandler) DeleteInterview(ctx context.Context, req *pb.DeleteInterviewRequest) (*common.Response, error) {
+func (h *InterviewHandler) DeleteInterview(ctx context.Context, req *pb.DeleteInterviewRequest) (*pb.Response, error) {
 	err := h.interviewService.DeleteInterview(req.InterviewId)
 	if err != nil {
-		return &common.Response{
+		return &pb.Response{
 			Success: false,
 			Error:   err.Error(),
 		}, nil
 	}
 
-	return &common.Response{
+	return &pb.Response{
 		Success: true,
 		Message: "Interview deleted successfully",
 	}, nil
@@ -258,7 +257,7 @@ func (h *InterviewHandler) GetScheduledInterviews(ctx context.Context, req *pb.G
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return &pb.GetScheduledInterviewsResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   "Invalid date format",
 			},
@@ -268,7 +267,7 @@ func (h *InterviewHandler) GetScheduledInterviews(ctx context.Context, req *pb.G
 	interviews, err := h.interviewService.GetScheduledInterviews(req.InterviewerId, date)
 	if err != nil {
 		return &pb.GetScheduledInterviewsResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -308,7 +307,7 @@ func (h *InterviewHandler) GetScheduledInterviews(ctx context.Context, req *pb.G
 	}
 
 	return &pb.GetScheduledInterviewsResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 		},
 		Interviews: pbInterviews,
@@ -319,7 +318,7 @@ func (h *InterviewHandler) GenerateQuestions(ctx context.Context, req *pb.Genera
 	questions, err := h.interviewService.GenerateQuestions(req.InterviewId, req.Technologies, req.Level, req.Specialization)
 	if err != nil {
 		return &pb.GenerateQuestionsResponse{
-			Response: &common.Response{
+			Response: &pb.Response{
 				Success: false,
 				Error:   err.Error(),
 			},
@@ -339,7 +338,7 @@ func (h *InterviewHandler) GenerateQuestions(ctx context.Context, req *pb.Genera
 	}
 
 	return &pb.GenerateQuestionsResponse{
-		Response: &common.Response{
+		Response: &pb.Response{
 			Success: true,
 			Message: "Questions generated successfully",
 		},
