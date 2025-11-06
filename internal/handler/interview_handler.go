@@ -23,15 +23,26 @@ func NewInterviewHandler(interviewService *service.InterviewService) *InterviewH
 }
 
 func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateInterviewRequest) (*pb.CreateInterviewResponse, error) {
+	fmt.Printf("DEBUG: CreateInterview called with candidate_id=%s, interviewer_id=%s, scheduled_at=%s\n", req.CandidateId, req.InterviewerId, req.ScheduledAt)
+
 	// Parse scheduled time
-	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
-	if err != nil {
-		return &pb.CreateInterviewResponse{
-			Response: &pb.Response{
-				Success: false,
-				Error:   "Invalid scheduled time format",
-			},
-		}, nil
+	var scheduledAt time.Time
+	var err error
+	if req.ScheduledAt != "" {
+		scheduledAt, err = time.Parse(time.RFC3339, req.ScheduledAt)
+		if err != nil {
+			fmt.Printf("DEBUG: Failed to parse scheduled_at '%s': %v\n", req.ScheduledAt, err)
+			return &pb.CreateInterviewResponse{
+				Response: &pb.Response{
+					Success: false,
+					Error:   fmt.Sprintf("Invalid scheduled time format: %v", err),
+				},
+			}, nil
+		}
+	} else {
+		// Use current time if not specified
+		scheduledAt = time.Now()
+		fmt.Printf("DEBUG: No scheduled_at provided, using current time: %v\n", scheduledAt)
 	}
 
 	interview := &models.Interview{
@@ -45,8 +56,10 @@ func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateIn
 		Specialization: req.Specialization,
 	}
 
+	fmt.Printf("DEBUG: Calling interviewService.CreateInterview with interview title=%s\n", interview.Title)
 	createdInterview, err := h.interviewService.CreateInterview(interview, req.Technologies)
 	if err != nil {
+		fmt.Printf("DEBUG: CreateInterview failed: %v\n", err)
 		return &pb.CreateInterviewResponse{
 			Response: &pb.Response{
 				Success: false,
@@ -54,6 +67,8 @@ func (h *InterviewHandler) CreateInterview(ctx context.Context, req *pb.CreateIn
 			},
 		}, nil
 	}
+
+	fmt.Printf("DEBUG: CreateInterview successful, interview ID=%s\n", createdInterview.ID)
 
 	return &pb.CreateInterviewResponse{
 		Response: &pb.Response{
@@ -88,6 +103,12 @@ func (h *InterviewHandler) GetInterview(ctx context.Context, req *pb.GetIntervie
 		}, nil
 	}
 
+	// Get technologies for this interview
+	technologies, err := h.interviewService.GetInterviewTechnologies(interview.ID)
+	if err != nil {
+		technologies = []string{} // Continue with empty technologies
+	}
+
 	return &pb.GetInterviewResponse{
 		Response: &pb.Response{
 			Success: true,
@@ -104,6 +125,7 @@ func (h *InterviewHandler) GetInterview(ctx context.Context, req *pb.GetIntervie
 			UpdatedAt:      interview.UpdatedAt.Format(time.RFC3339),
 			Level:          interview.Level,
 			Specialization: interview.Specialization,
+			Technologies:   technologies,
 		},
 	}, nil
 }
@@ -134,6 +156,13 @@ func (h *InterviewHandler) GetInterviews(ctx context.Context, req *pb.GetIntervi
 			fmt.Printf("DEBUG: Handler found candidate %s for interview %s\n", interview.Candidate.Name, interview.ID)
 		}
 
+		// Get technologies for this interview
+		technologies, err := h.interviewService.GetInterviewTechnologies(interview.ID)
+		if err != nil {
+			fmt.Printf("DEBUG: Failed to get technologies for interview %s: %v\n", interview.ID, err)
+			technologies = []string{} // Continue with empty technologies
+		}
+
 		pbInterview := &pb.Interview{
 			Id:             interview.ID,
 			CandidateId:    interview.CandidateID,
@@ -146,6 +175,7 @@ func (h *InterviewHandler) GetInterviews(ctx context.Context, req *pb.GetIntervi
 			UpdatedAt:      interview.UpdatedAt.Format(time.RFC3339),
 			Level:          interview.Level,
 			Specialization: interview.Specialization,
+			Technologies:   technologies,
 		}
 
 		// Add candidate information if available
@@ -186,28 +216,51 @@ func (h *InterviewHandler) GetInterviews(ctx context.Context, req *pb.GetIntervi
 }
 
 func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateInterviewRequest) (*pb.UpdateInterviewResponse, error) {
-	// Parse scheduled time
-	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
+	// Get existing interview to preserve fields not being updated
+	existingInterview, err := h.interviewService.GetInterviewByID(req.InterviewId)
 	if err != nil {
 		return &pb.UpdateInterviewResponse{
 			Response: &pb.Response{
 				Success: false,
-				Error:   "Invalid scheduled time format",
+				Error:   fmt.Sprintf("Failed to get existing interview: %v", err),
 			},
 		}, nil
+	}
+
+	// Parse scheduled time if provided
+	var scheduledAt time.Time
+	if req.ScheduledAt != "" {
+		var err error
+		scheduledAt, err = time.Parse(time.RFC3339, req.ScheduledAt)
+		if err != nil {
+			return &pb.UpdateInterviewResponse{
+				Response: &pb.Response{
+					Success: false,
+					Error:   "Invalid scheduled time format",
+				},
+			}, nil
+		}
+	} else {
+		scheduledAt = existingInterview.ScheduledAt
+	}
+
+	// Use existing status if not provided
+	status := req.Status
+	if status == "" {
+		status = existingInterview.Status
 	}
 
 	interview := &models.Interview{
 		ID:             req.InterviewId,
 		Title:          req.Title,
 		Description:    req.Description,
-		Status:         req.Status,
+		Status:         status,
 		ScheduledAt:    scheduledAt,
 		Level:          req.Level,
 		Specialization: req.Specialization,
 	}
 
-	updatedInterview, err := h.interviewService.UpdateInterview(interview)
+	updatedInterview, err := h.interviewService.UpdateInterview(interview, req.Technologies)
 	if err != nil {
 		return &pb.UpdateInterviewResponse{
 			Response: &pb.Response{
@@ -215,6 +268,12 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 				Error:   err.Error(),
 			},
 		}, nil
+	}
+
+	// Get technologies for this interview
+	technologies, err := h.interviewService.GetInterviewTechnologies(updatedInterview.ID)
+	if err != nil {
+		technologies = req.Technologies // Fallback to requested technologies
 	}
 
 	return &pb.UpdateInterviewResponse{
@@ -234,6 +293,7 @@ func (h *InterviewHandler) UpdateInterview(ctx context.Context, req *pb.UpdateIn
 			UpdatedAt:      updatedInterview.UpdatedAt.Format(time.RFC3339),
 			Level:          updatedInterview.Level,
 			Specialization: updatedInterview.Specialization,
+			Technologies:   technologies,
 		},
 	}, nil
 }

@@ -73,9 +73,21 @@ func (s *InterviewService) GetInterviewsByInterviewer(interviewerID string, limi
 	return interviews, nil
 }
 
-func (s *InterviewService) UpdateInterview(interview *models.Interview) (*models.Interview, error) {
+func (s *InterviewService) UpdateInterview(interview *models.Interview, technologies []string) (*models.Interview, error) {
 	if err := s.interviewRepo.UpdateInterview(interview); err != nil {
 		return nil, fmt.Errorf("failed to update interview: %w", err)
+	}
+
+	// Delete old technologies
+	if err := s.interviewRepo.DeleteInterviewTechnologies(interview.ID); err != nil {
+		return nil, fmt.Errorf("failed to delete old technologies: %w", err)
+	}
+
+	// Add new technologies
+	for _, techID := range technologies {
+		if err := s.interviewRepo.AddInterviewTechnology(interview.ID, techID); err != nil {
+			return nil, fmt.Errorf("failed to add technology to interview: %w", err)
+		}
 	}
 
 	return interview, nil
@@ -122,4 +134,8 @@ func (s *InterviewService) GetQuestionsFromService(technologies []string, level,
 	}
 
 	return questions, nil
+}
+
+func (s *InterviewService) GetInterviewTechnologies(interviewID string) ([]string, error) {
+	return s.interviewRepo.GetInterviewTechnologies(interviewID)
 }

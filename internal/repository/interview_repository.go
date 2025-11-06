@@ -82,25 +82,39 @@ func (r *InterviewRepository) GetInterviewsByInterviewer(interviewerID string, l
 	var interviews []*models.Interview
 	for rows.Next() {
 		interview := &models.Interview{}
-		candidate := &models.Candidate{}
+
+		// Use sql.NullString for candidate fields that might be NULL
+		var candidateID, candidateName, candidateEmail, candidatePhone sql.NullString
+		var candidateExperienceYears sql.NullInt64
+		var candidateCreatedAt, candidateUpdatedAt sql.NullTime
+
 		err := rows.Scan(
 			&interview.ID, &interview.CandidateID, &interview.InterviewerID,
 			&interview.Title, &interview.Description, &interview.Status,
 			&interview.ScheduledAt, &interview.CreatedAt, &interview.UpdatedAt,
 			&interview.Level, &interview.Specialization,
-			&candidate.ID, &candidate.Name, &candidate.Email, &candidate.Phone,
-			&candidate.ExperienceYears, &candidate.CreatedAt, &candidate.UpdatedAt,
+			&candidateID, &candidateName, &candidateEmail, &candidatePhone,
+			&candidateExperienceYears, &candidateCreatedAt, &candidateUpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan interview: %w", err)
 		}
 
 		// Only set candidate if we have valid data
-		if candidate.ID != "" {
+		if candidateID.Valid && candidateID.String != "" {
+			candidate := &models.Candidate{
+				ID:              candidateID.String,
+				Name:            candidateName.String,
+				Email:           candidateEmail.String,
+				Phone:           candidatePhone.String,
+				ExperienceYears: int(candidateExperienceYears.Int64),
+				CreatedAt:       candidateCreatedAt.Time,
+				UpdatedAt:       candidateUpdatedAt.Time,
+			}
 			interview.Candidate = candidate
 			fmt.Printf("DEBUG: Found candidate %s for interview %s\n", candidate.Name, interview.ID)
 		} else {
-			fmt.Printf("DEBUG: No candidate found for interview %s\n", interview.ID)
+			fmt.Printf("DEBUG: No candidate found for interview %s (candidate_id: %s)\n", interview.ID, interview.CandidateID)
 		}
 
 		interviews = append(interviews, interview)
@@ -206,4 +220,15 @@ func (r *InterviewRepository) GetInterviewTechnologies(interviewID string) ([]st
 	}
 
 	return technologies, nil
+}
+
+func (r *InterviewRepository) DeleteInterviewTechnologies(interviewID string) error {
+	query := `DELETE FROM interview_technologies WHERE interview_id = $1`
+
+	_, err := r.db.Exec(query, interviewID)
+	if err != nil {
+		return fmt.Errorf("failed to delete interview technologies: %w", err)
+	}
+
+	return nil
 }
