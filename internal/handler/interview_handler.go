@@ -336,6 +336,13 @@ func (h *InterviewHandler) GetScheduledInterviews(ctx context.Context, req *pb.G
 
 	var pbInterviews []*pb.Interview
 	for _, interview := range interviews {
+		// Get technologies for this interview
+		technologies, err := h.interviewService.GetInterviewTechnologies(interview.ID)
+		if err != nil {
+			fmt.Printf("DEBUG: Failed to get technologies for interview %s: %v\n", interview.ID, err)
+			technologies = []string{} // Continue with empty technologies
+		}
+
 		pbInterview := &pb.Interview{
 			Id:             interview.ID,
 			CandidateId:    interview.CandidateID,
@@ -348,6 +355,7 @@ func (h *InterviewHandler) GetScheduledInterviews(ctx context.Context, req *pb.G
 			UpdatedAt:      interview.UpdatedAt.Format(time.RFC3339),
 			Level:          interview.Level,
 			Specialization: interview.Specialization,
+			Technologies:   technologies,
 		}
 
 		// Add candidate information if available
