@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	pb "github.com/inter-verse/interview-service/gen"
-	"github.com/inter-verse/interview-service/internal/models"
-	"github.com/inter-verse/interview-service/internal/service"
+	pb "github.com/LimeOnTop/interverse-interview/gen"
+	"github.com/LimeOnTop/interverse-interview/internal/models"
+	"github.com/LimeOnTop/interverse-interview/internal/service"
 )
 
 type InterviewHandler struct {

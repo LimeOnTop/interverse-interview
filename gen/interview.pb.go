@@ -1367,7 +1367,7 @@ const file_interview_service_proto_interview_proto_rawDesc = "" +
 	"\x0fUpdateInterview\x12!.interview.UpdateInterviewRequest\x1a\".interview.UpdateInterviewResponse\x12I\n" +
 	"\x0fDeleteInterview\x12!.interview.DeleteInterviewRequest\x1a\x13.interview.Response\x12m\n" +
 	"\x16GetScheduledInterviews\x12(.interview.GetScheduledInterviewsRequest\x1a).interview.GetScheduledInterviewsResponse\x12^\n" +
-	"\x11GenerateQuestions\x12#.interview.GenerateQuestionsRequest\x1a$.interview.GenerateQuestionsResponseB.Z,github.com/inter-verse/interview-service/genb\x06proto3"
+	"\x11GenerateQuestions\x12#.interview.GenerateQuestionsRequest\x1a$.interview.GenerateQuestionsResponseB.Z,github.com/LimeOnTop/interverse-interview/genb\x06proto3"
 
 var (
 	file_interview_service_proto_interview_proto_rawDescOnce sync.Once

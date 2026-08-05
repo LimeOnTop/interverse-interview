@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/inter-verse/interview-service/internal/models"
-	"github.com/inter-verse/interview-service/internal/repository"
+	"github.com/LimeOnTop/interverse-interview/internal/models"
+	"github.com/LimeOnTop/interverse-interview/internal/repository"
 )
 
 type InterviewService struct {
@@ -139,3 +139,4 @@ func (s *InterviewService) GetQuestionsFromService(technologies []string, level,
 func (s *InterviewService) GetInterviewTechnologies(interviewID string) ([]string, error) {
 	return s.interviewRepo.GetInterviewTechnologies(interviewID)
 }
+

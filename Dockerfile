@@ -8,13 +8,13 @@ RUN apk add --no-cache git
 
 # Copy go mod files
 # Copy gen directory for local modules
-COPY interview-service/gen/ ./gen/
+COPY interverse-interview/gen/ ./gen/
 
-COPY interview-service/go.mod interview-service/go.sum ./
+COPY interverse-interview/go.mod interverse-interview/go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY interview-service/ ./
+COPY interverse-interview/ ./
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o interview-service .
