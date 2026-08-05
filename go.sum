@@ -1,3 +1,5 @@
+github.com/LimeOnTop/interverse-contracts v0.0.0-20260805234728-a1c1a5bacbb9 h1:2bcgCuuVolpmBFES6gQGBdf1cWPzBcpUaDXnDpV4Cko=
+github.com/LimeOnTop/interverse-contracts v0.0.0-20260805234728-a1c1a5bacbb9/go.mod h1:6GuwSvqN145ZrrRK/v3jnLyejIQo2xN3E7XLdw7H3NY=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=

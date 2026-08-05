@@ -4,7 +4,7 @@ import (
 	"log"
 	"net"
 
-	pb "github.com/LimeOnTop/interverse-interview/gen"
+	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/internal/config"
 	"github.com/LimeOnTop/interverse-interview/internal/database"
 	"github.com/LimeOnTop/interverse-interview/internal/handler"

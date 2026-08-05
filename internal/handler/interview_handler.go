@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	pb "github.com/LimeOnTop/interverse-interview/gen"
+	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/internal/models"
 	"github.com/LimeOnTop/interverse-interview/internal/service"
 )
