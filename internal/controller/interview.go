@@ -273,6 +273,7 @@ func toProtoSessionItems(items []usecase.SessionItemDTO) []*pb.SessionItem {
 			Technology: item.Technology,
 			Difficulty: item.Difficulty,
 			Category:   item.Category,
+			Options:    item.Options,
 		})
 	}
 	return result

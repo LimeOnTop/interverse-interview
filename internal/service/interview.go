@@ -14,6 +14,8 @@ const (
 	defaultStatus     = entity.StatusScheduled
 	questionsPerSession = 20
 	tasksPerSession     = 2
+	// Technologies with seeded question banks; used when selected stack has no questions yet.
+	questionBankFallbackTechnologies = "Go"
 )
 
 type InterviewService struct {
@@ -141,17 +143,19 @@ func (s *InterviewService) StartSession(ctx context.Context, interviewID, userID
 		return usecase.SessionContentDTO{}, fmt.Errorf("get session items: %w", err)
 	}
 
-	if len(existingItems) > 0 {
+	if len(existingItems) > 0 && interview.Status == entity.StatusInProgress {
 		return s.buildSessionContentDTO(ctx, interview)
+	}
+
+	if len(existingItems) > 0 {
+		if err := s.repository.DeleteSessionItems(ctx, interviewID); err != nil {
+			return usecase.SessionContentDTO{}, fmt.Errorf("reset stale session items: %w", err)
+		}
 	}
 
 	questionRefs, taskRefs, err := s.collectSessionQuestions(ctx, technologies, interview.Level, interview.Specialization)
 	if err != nil {
 		return usecase.SessionContentDTO{}, err
-	}
-
-	if err := s.repository.DeleteSessionItems(ctx, interviewID); err != nil {
-		return usecase.SessionContentDTO{}, fmt.Errorf("reset session items: %w", err)
 	}
 
 	items := make([]entity.SessionItem, 0, len(questionRefs)+len(taskRefs))
@@ -165,6 +169,7 @@ func (s *InterviewService) StartSession(ctx context.Context, interviewID, userID
 			Technology:  ref.Technology,
 			Difficulty:  ref.Difficulty,
 			Category:    ref.Category,
+			Options:     toSessionOptions(ref.Options),
 		})
 	}
 
@@ -216,7 +221,7 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 	perTechnologyLimit := 40
 
 	for _, technology := range technologies {
-		questions, err := s.questionBank.GetByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, perTechnologyLimit)
+		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, perTechnologyLimit)
 		if err != nil {
 			return nil, nil, fmt.Errorf("fetch questions for %s: %w", technology, err)
 		}
@@ -232,7 +237,7 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 			questionPool = append(questionPool, question)
 		}
 
-		tasks, err := s.questionBank.GetByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, perTechnologyLimit)
+		tasks, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, perTechnologyLimit)
 		if err != nil {
 			return nil, nil, fmt.Errorf("fetch tasks for %s: %w", technology, err)
 		}
@@ -258,12 +263,27 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 		selectedTasks = pickItems(taskPool, tasksPerSession)
 	}
 
+	if len(selectedQuestions) < questionsPerSession || len(selectedTasks) < tasksPerSession {
+		fallbackTechnologies := fallbackTechnologiesForQuestionBank(technologies)
+		fallbackQuestions, fallbackTasks := s.collectPoolsWithoutSpecialization(ctx, fallbackTechnologies, difficulty)
+		questionPool = mergeQuestionRefs(questionPool, fallbackQuestions)
+		taskPool = mergeQuestionRefs(taskPool, fallbackTasks)
+		selectedQuestions = pickItems(questionPool, questionsPerSession)
+		selectedTasks = pickItems(taskPool, tasksPerSession)
+	}
+
 	if len(selectedQuestions) < questionsPerSession {
-		return nil, nil, fmt.Errorf("not enough questions in question bank: need %d, found %d", questionsPerSession, len(selectedQuestions))
+		return nil, nil, fmt.Errorf(
+			"not enough questions in question bank: need %d, found %d (level=%s, technologies=%s). Сейчас доступны вопросы только для: %s",
+			questionsPerSession, len(selectedQuestions), difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
+		)
 	}
 
 	if len(selectedTasks) < tasksPerSession {
-		return nil, nil, fmt.Errorf("not enough tasks in question bank: need %d, found %d", tasksPerSession, len(selectedTasks))
+		return nil, nil, fmt.Errorf(
+			"not enough tasks in question bank: need %d, found %d (level=%s, technologies=%s). Сейчас доступны задачи только для: %s",
+			tasksPerSession, len(selectedTasks), difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
+		)
 	}
 
 	return selectedQuestions, selectedTasks, nil
@@ -276,7 +296,7 @@ func (s *InterviewService) collectPoolsWithoutSpecialization(ctx context.Context
 	seenTasks := make(map[string]struct{})
 
 	for _, technology := range technologies {
-		questions, err := s.questionBank.GetByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, 40)
+		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, 40)
 		if err == nil {
 			for _, question := range questions {
 				if _, exists := seenQuestions[question.ID]; exists {
@@ -287,7 +307,7 @@ func (s *InterviewService) collectPoolsWithoutSpecialization(ctx context.Context
 			}
 		}
 
-		tasks, err := s.questionBank.GetByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, 40)
+		tasks, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, 40)
 		if err == nil {
 			for _, task := range tasks {
 				if _, exists := seenTasks[task.ID]; exists {
@@ -313,6 +333,22 @@ func (s *InterviewService) buildSessionContentDTO(ctx context.Context, interview
 		return usecase.SessionContentDTO{}, fmt.Errorf("get session items: %w", err)
 	}
 
+	for index, item := range items {
+		if item.ItemType != entity.ItemTypeQuestion || len(item.Options) > 0 || item.QuestionID == "" {
+			continue
+		}
+
+		question, err := s.questionBank.GetByID(ctx, item.QuestionID)
+		if err != nil || len(question.Options) == 0 {
+			continue
+		}
+
+		items[index].Options = toSessionOptions(question.Options)
+		if err := s.repository.UpdateSessionItemOptions(ctx, item.ID, items[index].Options); err != nil {
+			return usecase.SessionContentDTO{}, fmt.Errorf("backfill session item options: %w", err)
+		}
+	}
+
 	dto := toDTO(interview)
 	dto.Technologies = technologies
 
@@ -332,6 +368,7 @@ func (s *InterviewService) buildSessionContentDTO(ctx context.Context, interview
 			Technology: item.Technology,
 			Difficulty: item.Difficulty,
 			Category:   item.Category,
+			Options:    optionTexts(item.Options),
 		}
 
 		switch item.ItemType {
@@ -392,6 +429,45 @@ func mapLevelToDifficulty(level string) string {
 	}
 }
 
+func difficultyFallbackOrder(requested string) []string {
+	candidates := []string{
+		requested,
+		"senior",
+		"middle",
+		"junior",
+		"intern",
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	order := make([]string, 0, len(candidates))
+	for _, difficulty := range candidates {
+		if difficulty == "" {
+			continue
+		}
+		if _, exists := seen[difficulty]; exists {
+			continue
+		}
+		seen[difficulty] = struct{}{}
+		order = append(order, difficulty)
+	}
+
+	return order
+}
+
+func (s *InterviewService) fetchByTechnology(ctx context.Context, technology, difficulty, category string, limit int) ([]usecase.QuestionRef, error) {
+	for _, candidateDifficulty := range difficultyFallbackOrder(difficulty) {
+		questions, err := s.questionBank.GetByTechnology(ctx, technology, candidateDifficulty, category, limit)
+		if err != nil {
+			return nil, err
+		}
+		if len(questions) > 0 {
+			return questions, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func matchesSpecialization(question usecase.QuestionRef, specialization string) bool {
 	if specialization == "" {
 		return true
@@ -413,4 +489,69 @@ func pickItems(items []usecase.QuestionRef, count int) []usecase.QuestionRef {
 		return items
 	}
 	return items[:count]
+}
+
+func fallbackTechnologiesForQuestionBank(selected []string) []string {
+	seen := make(map[string]struct{}, len(selected)+1)
+	for _, technology := range selected {
+		seen[technology] = struct{}{}
+	}
+
+	fallback := make([]string, 0, len(selected)+1)
+	for _, technology := range append(selected, questionBankFallbackTechnologies) {
+		if _, exists := seen[technology]; exists {
+			continue
+		}
+		seen[technology] = struct{}{}
+		fallback = append(fallback, technology)
+	}
+
+	return fallback
+}
+
+func mergeQuestionRefs(existing, extra []usecase.QuestionRef) []usecase.QuestionRef {
+	if len(extra) == 0 {
+		return existing
+	}
+
+	seen := make(map[string]struct{}, len(existing)+len(extra))
+	merged := make([]usecase.QuestionRef, 0, len(existing)+len(extra))
+
+	for _, item := range existing {
+		if _, exists := seen[item.ID]; exists {
+			continue
+		}
+		seen[item.ID] = struct{}{}
+		merged = append(merged, item)
+	}
+
+	for _, item := range extra {
+		if _, exists := seen[item.ID]; exists {
+			continue
+		}
+		seen[item.ID] = struct{}{}
+		merged = append(merged, item)
+	}
+
+	return merged
+}
+
+func toSessionOptions(options []usecase.QuestionOptionRef) []entity.SessionOption {
+	result := make([]entity.SessionOption, 0, len(options))
+	for _, option := range options {
+		result = append(result, entity.SessionOption{
+			Text:      option.Text,
+			IsCorrect: option.IsCorrect,
+			SortOrder: option.SortOrder,
+		})
+	}
+	return result
+}
+
+func optionTexts(options []entity.SessionOption) []string {
+	result := make([]string, 0, len(options))
+	for _, option := range options {
+		result = append(result, option.Text)
+	}
+	return result
 }

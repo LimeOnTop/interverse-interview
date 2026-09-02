@@ -20,10 +20,18 @@ type InterviewRepository interface {
 	DeleteSessionItems(ctx context.Context, interviewID string) error
 	SaveSessionItems(ctx context.Context, items []entity.SessionItem) error
 	GetSessionItems(ctx context.Context, interviewID string) ([]entity.SessionItem, error)
+	UpdateSessionItemOptions(ctx context.Context, itemID string, options []entity.SessionOption) error
 }
 
 type QuestionBank interface {
 	GetByTechnology(ctx context.Context, technology, difficulty, category string, limit int) ([]QuestionRef, error)
+	GetByID(ctx context.Context, id string) (QuestionRef, error)
+}
+
+type QuestionOptionRef struct {
+	Text      string
+	IsCorrect bool
+	SortOrder int
 }
 
 type QuestionRef struct {
@@ -33,4 +41,5 @@ type QuestionRef struct {
 	Difficulty string
 	Technology string
 	Tags       []string
+	Options    []QuestionOptionRef
 }

@@ -1,0 +1,1 @@
+-- No-op: cannot reliably restore previous empty options state

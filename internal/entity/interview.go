@@ -35,5 +35,6 @@ type SessionItem struct {
 	Technology  string
 	Difficulty  string
 	Category    string
+	Options     []SessionOption
 	CreatedAt   time.Time
 }

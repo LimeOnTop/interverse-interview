@@ -25,6 +25,7 @@ type SessionItemDTO struct {
 	Technology  string
 	Difficulty  string
 	Category    string
+	Options     []string
 }
 
 type SessionContentDTO struct {

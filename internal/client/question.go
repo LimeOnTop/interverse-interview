@@ -52,8 +52,49 @@ func (c *QuestionClient) GetByTechnology(ctx context.Context, technology, diffic
 			Difficulty: question.Difficulty,
 			Technology: question.Technology,
 			Tags:       question.Tags,
+			Options:    mapQuestionOptions(question.Options),
 		})
 	}
 
 	return result, nil
+}
+
+func (c *QuestionClient) GetByID(ctx context.Context, id string) (usecase.QuestionRef, error) {
+	resp, err := c.client.GetQuestion(ctx, &questionpb.GetQuestionRequest{
+		QuestionId: id,
+	})
+	if err != nil {
+		return usecase.QuestionRef{}, fmt.Errorf("get question: %w", err)
+	}
+
+	if resp.Response != nil && !resp.Response.Success {
+		return usecase.QuestionRef{}, fmt.Errorf("get question: %s", resp.Response.Error)
+	}
+
+	question := resp.GetQuestion()
+	if question == nil {
+		return usecase.QuestionRef{}, fmt.Errorf("get question: empty response")
+	}
+
+	return usecase.QuestionRef{
+		ID:         question.Id,
+		Text:       question.Text,
+		Category:   question.Category,
+		Difficulty: question.Difficulty,
+		Technology: question.Technology,
+		Tags:       question.Tags,
+		Options:    mapQuestionOptions(question.Options),
+	}, nil
+}
+
+func mapQuestionOptions(options []*questionpb.QuestionOption) []usecase.QuestionOptionRef {
+	result := make([]usecase.QuestionOptionRef, 0, len(options))
+	for _, option := range options {
+		result = append(result, usecase.QuestionOptionRef{
+			Text:      option.GetText(),
+			IsCorrect: option.GetIsCorrect(),
+			SortOrder: int(option.GetSortOrder()),
+		})
+	}
+	return result
 }

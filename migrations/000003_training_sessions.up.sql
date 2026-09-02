@@ -1,5 +1,15 @@
 ALTER TABLE interviews DROP COLUMN IF EXISTS candidate_id;
-ALTER TABLE interviews RENAME COLUMN interviewer_id TO user_id;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'interviews' AND column_name = 'interviewer_id'
+    ) THEN
+        ALTER TABLE interviews RENAME COLUMN interviewer_id TO user_id;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS interview_session_items (
     id UUID PRIMARY KEY,

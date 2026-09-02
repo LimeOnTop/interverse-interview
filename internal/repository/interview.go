@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -201,8 +202,8 @@ func (r *InterviewRepository) DeleteSessionItems(ctx context.Context, interviewI
 
 func (r *InterviewRepository) SaveSessionItems(ctx context.Context, items []entity.SessionItem) error {
 	query := `
-		INSERT INTO interview_session_items (id, interview_id, question_id, item_type, sort_order, text, technology, difficulty, category, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO interview_session_items (id, interview_id, question_id, item_type, sort_order, text, technology, difficulty, category, options, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	for _, item := range items {
@@ -213,9 +214,19 @@ func (r *InterviewRepository) SaveSessionItems(ctx context.Context, items []enti
 			item.CreatedAt = time.Now()
 		}
 
-		_, err := r.db.ExecContext(ctx, query,
+		options := item.Options
+		if options == nil {
+			options = []entity.SessionOption{}
+		}
+
+		optionsJSON, err := json.Marshal(options)
+		if err != nil {
+			return fmt.Errorf("marshal session item options: %w", err)
+		}
+
+		_, err = r.db.ExecContext(ctx, query,
 			item.ID, item.InterviewID, nullString(item.QuestionID), item.ItemType, item.SortOrder,
-			item.Text, item.Technology, item.Difficulty, item.Category, item.CreatedAt,
+			item.Text, item.Technology, item.Difficulty, item.Category, optionsJSON, item.CreatedAt,
 		)
 		if err != nil {
 			return fmt.Errorf("save session item: %w", err)
@@ -227,7 +238,7 @@ func (r *InterviewRepository) SaveSessionItems(ctx context.Context, items []enti
 
 func (r *InterviewRepository) GetSessionItems(ctx context.Context, interviewID string) ([]entity.SessionItem, error) {
 	query := `
-		SELECT id, interview_id, question_id, item_type, sort_order, text, technology, difficulty, category, created_at
+		SELECT id, interview_id, question_id, item_type, sort_order, text, technology, difficulty, category, options, created_at
 		FROM interview_session_items
 		WHERE interview_id = $1
 		ORDER BY item_type ASC, sort_order ASC
@@ -243,16 +254,25 @@ func (r *InterviewRepository) GetSessionItems(ctx context.Context, interviewID s
 	for rows.Next() {
 		var item entity.SessionItem
 		var questionID sql.NullString
+		var optionsJSON []byte
 
 		if err := rows.Scan(
 			&item.ID, &item.InterviewID, &questionID, &item.ItemType, &item.SortOrder,
-			&item.Text, &item.Technology, &item.Difficulty, &item.Category, &item.CreatedAt,
+			&item.Text, &item.Technology, &item.Difficulty, &item.Category, &optionsJSON, &item.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan session item: %w", err)
 		}
 
 		if questionID.Valid {
 			item.QuestionID = questionID.String
+		}
+
+		if len(optionsJSON) > 0 {
+			parsed, err := unmarshalSessionOptions(optionsJSON)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal session item options: %w", err)
+			}
+			item.Options = parsed
 		}
 
 		items = append(items, item)
@@ -263,6 +283,24 @@ func (r *InterviewRepository) GetSessionItems(ctx context.Context, interviewID s
 	}
 
 	return items, nil
+}
+
+func (r *InterviewRepository) UpdateSessionItemOptions(ctx context.Context, itemID string, options []entity.SessionOption) error {
+	if options == nil {
+		options = []entity.SessionOption{}
+	}
+
+	optionsJSON, err := json.Marshal(options)
+	if err != nil {
+		return fmt.Errorf("marshal session item options: %w", err)
+	}
+
+	query := `UPDATE interview_session_items SET options = $1 WHERE id = $2`
+	if _, err := r.db.ExecContext(ctx, query, optionsJSON, itemID); err != nil {
+		return fmt.Errorf("update session item options: %w", err)
+	}
+
+	return nil
 }
 
 func scanInterviews(rows *sql.Rows) ([]entity.Interview, error) {
@@ -294,4 +332,31 @@ func nullString(value string) any {
 		return nil
 	}
 	return value
+}
+
+func unmarshalSessionOptions(data []byte) ([]entity.SessionOption, error) {
+	var structured []entity.SessionOption
+	if err := json.Unmarshal(data, &structured); err == nil {
+		if len(structured) == 0 {
+			return structured, nil
+		}
+		if structured[0].Text != "" || structured[0].IsCorrect || structured[0].SortOrder != 0 {
+			return structured, nil
+		}
+	}
+
+	var legacy []string
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return nil, err
+	}
+
+	result := make([]entity.SessionOption, 0, len(legacy))
+	for index, text := range legacy {
+		result = append(result, entity.SessionOption{
+			Text:      text,
+			SortOrder: index,
+		})
+	}
+
+	return result, nil
 }
