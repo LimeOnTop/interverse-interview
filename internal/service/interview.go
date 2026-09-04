@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -11,12 +12,25 @@ import (
 )
 
 const (
-	defaultStatus     = entity.StatusScheduled
-	questionsPerSession = 20
-	tasksPerSession     = 2
-	// Technologies with seeded question banks; used when selected stack has no questions yet.
+	defaultStatus              = entity.StatusScheduled
+	minQuestionsPerSession     = 10
+	maxQuestionsPerSession     = 20
+	minTasksPerSession         = 1
+	maxTasksPerSession         = 3
 	questionBankFallbackTechnologies = "Go"
+	subscriptionPlanFree       = "free"
+	subscriptionPlanPaid       = "paid"
+	freeTrainingsPerWeek       = 3
+	paidTrainingsPerDay        = 20
 )
+
+func moscowLocation() *time.Location {
+	loc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		return time.FixedZone("MSK", 3*60*60)
+	}
+	return loc
+}
 
 type InterviewService struct {
 	repository   usecase.InterviewRepository
@@ -32,9 +46,13 @@ func NewInterviewService(repository usecase.InterviewRepository, questionBank us
 
 var _ usecase.Interview = (*InterviewService)(nil)
 
-func (s *InterviewService) Create(ctx context.Context, interview entity.Interview, technologies []string) (usecase.InterviewDTO, error) {
+func (s *InterviewService) Create(ctx context.Context, interview entity.Interview, technologies []string, subscriptionPlan string) (usecase.InterviewDTO, error) {
 	if interview.Status == "" {
 		interview.Status = defaultStatus
+	}
+
+	if err := s.ensureTrainingQuota(ctx, interview.UserID, subscriptionPlan); err != nil {
+		return usecase.InterviewDTO{}, err
 	}
 
 	created, err := s.repository.Create(ctx, interview)
@@ -51,6 +69,47 @@ func (s *InterviewService) Create(ctx context.Context, interview entity.Intervie
 	dto := toDTO(created)
 	dto.Technologies = technologies
 	return dto, nil
+}
+
+func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subscriptionPlan string) error {
+	now := time.Now().In(moscowLocation())
+	plan := strings.ToLower(strings.TrimSpace(subscriptionPlan))
+	if plan != subscriptionPlanPaid {
+		plan = subscriptionPlanFree
+	}
+
+	var since time.Time
+	var limit int
+	var period string
+
+	if plan == subscriptionPlanPaid {
+		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		limit = paidTrainingsPerDay
+		period = "day"
+	} else {
+		// Monday-based week in Europe/Moscow
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		monday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).
+			AddDate(0, 0, -(weekday - 1))
+		since = monday
+		limit = freeTrainingsPerWeek
+		period = "week"
+	}
+
+	used, err := s.repository.CountCreatedSince(ctx, userID, since.UTC())
+	if err != nil {
+		return fmt.Errorf("check training quota: %w", err)
+	}
+	if used >= limit {
+		return fmt.Errorf(
+			"training_limit_exceeded: plan=%s limit=%d period=%s used=%d",
+			plan, limit, period, used,
+		)
+	}
+	return nil
 }
 
 func (s *InterviewService) GetByID(ctx context.Context, id string) (usecase.InterviewDTO, error) {
@@ -218,7 +277,7 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 	seenQuestions := make(map[string]struct{})
 	seenTasks := make(map[string]struct{})
 
-	perTechnologyLimit := 40
+	perTechnologyLimit := 80
 
 	for _, technology := range technologies {
 		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, perTechnologyLimit)
@@ -254,37 +313,29 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 		}
 	}
 
-	selectedQuestions := pickItems(questionPool, questionsPerSession)
-	selectedTasks := pickItems(taskPool, tasksPerSession)
-
-	if len(selectedQuestions) < questionsPerSession || len(selectedTasks) < tasksPerSession {
+	questionCount, taskCount, err := sessionItemCounts(len(questionPool), len(taskPool))
+	if err != nil {
 		questionPool, taskPool = s.collectPoolsWithoutSpecialization(ctx, technologies, difficulty)
-		selectedQuestions = pickItems(questionPool, questionsPerSession)
-		selectedTasks = pickItems(taskPool, tasksPerSession)
+		questionCount, taskCount, err = sessionItemCounts(len(questionPool), len(taskPool))
 	}
 
-	if len(selectedQuestions) < questionsPerSession || len(selectedTasks) < tasksPerSession {
+	if err != nil {
 		fallbackTechnologies := fallbackTechnologiesForQuestionBank(technologies)
 		fallbackQuestions, fallbackTasks := s.collectPoolsWithoutSpecialization(ctx, fallbackTechnologies, difficulty)
 		questionPool = mergeQuestionRefs(questionPool, fallbackQuestions)
 		taskPool = mergeQuestionRefs(taskPool, fallbackTasks)
-		selectedQuestions = pickItems(questionPool, questionsPerSession)
-		selectedTasks = pickItems(taskPool, tasksPerSession)
+		questionCount, taskCount, err = sessionItemCounts(len(questionPool), len(taskPool))
 	}
 
-	if len(selectedQuestions) < questionsPerSession {
+	if err != nil {
 		return nil, nil, fmt.Errorf(
-			"not enough questions in question bank: need %d, found %d (level=%s, technologies=%s). Сейчас доступны вопросы только для: %s",
-			questionsPerSession, len(selectedQuestions), difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
+			"%w (level=%s, technologies=%s). Сейчас доступны вопросы/задачи для: %s",
+			err, difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
 		)
 	}
 
-	if len(selectedTasks) < tasksPerSession {
-		return nil, nil, fmt.Errorf(
-			"not enough tasks in question bank: need %d, found %d (level=%s, technologies=%s). Сейчас доступны задачи только для: %s",
-			tasksPerSession, len(selectedTasks), difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
-		)
-	}
+	selectedQuestions := pickItems(questionPool, questionCount)
+	selectedTasks := pickItems(taskPool, taskCount)
 
 	return selectedQuestions, selectedTasks, nil
 }
@@ -296,7 +347,7 @@ func (s *InterviewService) collectPoolsWithoutSpecialization(ctx context.Context
 	seenTasks := make(map[string]struct{})
 
 	for _, technology := range technologies {
-		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, 40)
+		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, 80)
 		if err == nil {
 			for _, question := range questions {
 				if _, exists := seenQuestions[question.ID]; exists {
@@ -307,7 +358,7 @@ func (s *InterviewService) collectPoolsWithoutSpecialization(ctx context.Context
 			}
 		}
 
-		tasks, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, 40)
+		tasks, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, 80)
 		if err == nil {
 			for _, task := range tasks {
 				if _, exists := seenTasks[task.ID]; exists {
@@ -484,11 +535,52 @@ func matchesSpecialization(question usecase.QuestionRef, specialization string) 
 	return strings.Contains(normalizedCategory, normalizedSpecialization)
 }
 
-func pickItems(items []usecase.QuestionRef, count int) []usecase.QuestionRef {
-	if len(items) <= count {
-		return items
+func sessionItemCounts(questionPoolSize, taskPoolSize int) (questionCount, taskCount int, err error) {
+	if questionPoolSize < minQuestionsPerSession {
+		return 0, 0, fmt.Errorf(
+			"not enough questions in question bank: need at least %d, found %d",
+			minQuestionsPerSession, questionPoolSize,
+		)
 	}
-	return items[:count]
+	if taskPoolSize < minTasksPerSession {
+		return 0, 0, fmt.Errorf(
+			"not enough tasks in question bank: need at least %d, found %d",
+			minTasksPerSession, taskPoolSize,
+		)
+	}
+
+	maxQuestions := maxQuestionsPerSession
+	if questionPoolSize < maxQuestions {
+		maxQuestions = questionPoolSize
+	}
+	maxTasks := maxTasksPerSession
+	if taskPoolSize < maxTasks {
+		maxTasks = taskPoolSize
+	}
+
+	return randomIntInclusive(minQuestionsPerSession, maxQuestions), randomIntInclusive(minTasksPerSession, maxTasks), nil
+}
+
+func randomIntInclusive(min, max int) int {
+	if max <= min {
+		return min
+	}
+	return min + rand.Intn(max-min+1)
+}
+
+func pickItems(items []usecase.QuestionRef, count int) []usecase.QuestionRef {
+	if count <= 0 || len(items) == 0 {
+		return nil
+	}
+	if count > len(items) {
+		count = len(items)
+	}
+
+	shuffled := append([]usecase.QuestionRef(nil), items...)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+	return shuffled[:count]
 }
 
 func fallbackTechnologiesForQuestionBank(selected []string) []string {

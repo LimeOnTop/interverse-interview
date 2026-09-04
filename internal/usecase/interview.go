@@ -8,7 +8,7 @@ import (
 )
 
 type Interview interface {
-	Create(ctx context.Context, interview entity.Interview, technologies []string) (InterviewDTO, error)
+	Create(ctx context.Context, interview entity.Interview, technologies []string, subscriptionPlan string) (InterviewDTO, error)
 	GetByID(ctx context.Context, id string) (InterviewDTO, error)
 	GetByUser(ctx context.Context, userID, status string, limit, offset int) ([]InterviewDTO, error)
 	Update(ctx context.Context, interview entity.Interview, technologies []string) (InterviewDTO, error)

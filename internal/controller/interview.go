@@ -36,7 +36,7 @@ func (c *InterviewController) CreateInterview(ctx context.Context, req *pb.Creat
 		ScheduledAt:    scheduledAt,
 		Level:          req.Level,
 		Specialization: req.Specialization,
-	}, req.Technologies)
+	}, req.Technologies, req.GetSubscriptionPlan())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil, fmt.Errorf("context canceled: %w", err)

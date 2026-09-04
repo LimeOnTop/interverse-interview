@@ -142,6 +142,19 @@ func (r *InterviewRepository) GetScheduled(ctx context.Context, userID string, d
 	return scanInterviews(rows)
 }
 
+func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID string, since time.Time) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM interviews
+		WHERE user_id = $1 AND created_at >= $2
+	`
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, userID, since).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count interviews created since: %w", err)
+	}
+	return count, nil
+}
+
 func (r *InterviewRepository) AddTechnology(ctx context.Context, interviewID, technologyID string) error {
 	query := `INSERT INTO interview_technologies (interview_id, technology_id) VALUES ($1, $2)`
 
