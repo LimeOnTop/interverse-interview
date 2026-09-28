@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 	questionpb "github.com/LimeOnTop/interverse-contracts/question/gen"
+	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

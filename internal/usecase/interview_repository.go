@@ -10,11 +10,11 @@ import (
 type InterviewRepository interface {
 	Create(ctx context.Context, interview entity.Interview) (entity.Interview, error)
 	GetByID(ctx context.Context, id string) (entity.Interview, error)
-	GetByUser(ctx context.Context, userID, status string, limit, offset int) ([]entity.Interview, error)
+	GetByUser(ctx context.Context, userID, status string, limit, offset int64) ([]entity.Interview, error)
 	Update(ctx context.Context, interview entity.Interview) (entity.Interview, error)
 	Delete(ctx context.Context, id string) error
 	GetScheduled(ctx context.Context, userID string, date time.Time) ([]entity.Interview, error)
-	CountCreatedSince(ctx context.Context, userID string, since time.Time) (int, error)
+	CountCreatedSince(ctx context.Context, userID string, since time.Time) (int64, error)
 	AddTechnology(ctx context.Context, interviewID, technologyID string) error
 	GetTechnologies(ctx context.Context, interviewID string) ([]string, error)
 	DeleteTechnologies(ctx context.Context, interviewID string) error

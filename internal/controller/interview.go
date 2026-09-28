@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/LimeOnTop/interverse-interview/internal/apperr"
 	"time"
 
+	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
 	"github.com/LimeOnTop/interverse-interview/internal/usecase"
-	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 )
 
 type InterviewController struct {
@@ -24,7 +25,7 @@ func (c *InterviewController) CreateInterview(ctx context.Context, req *pb.Creat
 	scheduledAt, err := parseScheduledAt(req.ScheduledAt)
 	if err != nil {
 		return &pb.CreateInterviewResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -42,7 +43,7 @@ func (c *InterviewController) CreateInterview(ctx context.Context, req *pb.Creat
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.CreateInterviewResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -59,7 +60,7 @@ func (c *InterviewController) GetInterview(ctx context.Context, req *pb.GetInter
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.GetInterviewResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -70,12 +71,12 @@ func (c *InterviewController) GetInterview(ctx context.Context, req *pb.GetInter
 }
 
 func (c *InterviewController) GetInterviews(ctx context.Context, req *pb.GetInterviewsRequest) (*pb.GetInterviewsResponse, error) {
-	limit := 10
-	offset := 0
+	limit := int64(10)
+	offset := int64(0)
 
 	if req.Pagination != nil {
-		limit = int(req.Pagination.Limit)
-		offset = int(req.Pagination.Page-1) * int(req.Pagination.Limit)
+		limit = int64(req.Pagination.Limit)
+		offset = int64(req.Pagination.Page-1) * int64(req.Pagination.Limit)
 	}
 
 	interviews, err := c.interview.GetByUser(ctx, req.UserId, req.Status, limit, offset)
@@ -84,7 +85,7 @@ func (c *InterviewController) GetInterviews(ctx context.Context, req *pb.GetInte
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.GetInterviewsResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -115,7 +116,7 @@ func (c *InterviewController) UpdateInterview(ctx context.Context, req *pb.Updat
 		scheduledAt, err = parseScheduledAt(req.ScheduledAt)
 		if err != nil {
 			return &pb.UpdateInterviewResponse{
-				Response: &pb.Response{Success: false, Error: err.Error()},
+				Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 			}, nil
 		}
 	}
@@ -140,7 +141,7 @@ func (c *InterviewController) UpdateInterview(ctx context.Context, req *pb.Updat
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.UpdateInterviewResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -156,7 +157,7 @@ func (c *InterviewController) DeleteInterview(ctx context.Context, req *pb.Delet
 		if errors.Is(err, context.Canceled) {
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
-		return &pb.Response{Success: false, Error: err.Error()}, nil
+		return &pb.Response{Success: false, Error: apperr.Message(err, "request failed")}, nil
 	}
 
 	return &pb.Response{Success: true, Message: "Training session deleted successfully"}, nil
@@ -176,7 +177,7 @@ func (c *InterviewController) GetScheduledInterviews(ctx context.Context, req *p
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.GetScheduledInterviewsResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -193,7 +194,7 @@ func (c *InterviewController) StartSession(ctx context.Context, req *pb.StartSes
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.StartSessionResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 
@@ -212,7 +213,7 @@ func (c *InterviewController) GetSessionContent(ctx context.Context, req *pb.Get
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.GetSessionContentResponse{
-			Response: &pb.Response{Success: false, Error: err.Error()},
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
 		}, nil
 	}
 

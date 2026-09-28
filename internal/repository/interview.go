@@ -65,7 +65,7 @@ func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.In
 	return interview, nil
 }
 
-func (r *InterviewRepository) GetByUser(ctx context.Context, userID, status string, limit, offset int) ([]entity.Interview, error) {
+func (r *InterviewRepository) GetByUser(ctx context.Context, userID, status string, limit, offset int64) ([]entity.Interview, error) {
 	query := `
 		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization
 		FROM interviews
@@ -142,13 +142,13 @@ func (r *InterviewRepository) GetScheduled(ctx context.Context, userID string, d
 	return scanInterviews(rows)
 }
 
-func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID string, since time.Time) (int, error) {
+func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID string, since time.Time) (int64, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM interviews
 		WHERE user_id = $1 AND created_at >= $2
 	`
-	var count int
+	var count int64
 	if err := r.db.QueryRowContext(ctx, query, userID, since).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count interviews created since: %w", err)
 	}

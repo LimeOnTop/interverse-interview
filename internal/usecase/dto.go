@@ -17,15 +17,15 @@ type InterviewDTO struct {
 }
 
 type SessionItemDTO struct {
-	ID          string
-	QuestionID  string
-	ItemType    string
-	SortOrder   int
-	Text        string
-	Technology  string
-	Difficulty  string
-	Category    string
-	Options     []string
+	ID         string
+	QuestionID string
+	ItemType   string
+	SortOrder  int
+	Text       string
+	Technology string
+	Difficulty string
+	Category   string
+	Options    []string
 }
 
 type SessionContentDTO struct {

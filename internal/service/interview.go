@@ -12,16 +12,16 @@ import (
 )
 
 const (
-	defaultStatus              = entity.StatusScheduled
-	minQuestionsPerSession     = 10
-	maxQuestionsPerSession     = 20
-	minTasksPerSession         = 1
-	maxTasksPerSession         = 3
+	defaultStatus                    = entity.StatusScheduled
+	minQuestionsPerSession           = 10
+	maxQuestionsPerSession           = 20
+	minTasksPerSession               = 1
+	maxTasksPerSession               = 3
 	questionBankFallbackTechnologies = "Go"
-	subscriptionPlanFree       = "free"
-	subscriptionPlanPaid       = "paid"
-	freeTrainingsPerWeek       = 3
-	paidTrainingsPerDay        = 20
+	subscriptionPlanFree             = "free"
+	subscriptionPlanPaid             = "paid"
+	freeTrainingsPerWeek             = 3
+	paidTrainingsPerDay              = 20
 )
 
 func moscowLocation() *time.Location {
@@ -103,7 +103,7 @@ func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subs
 	if err != nil {
 		return fmt.Errorf("check training quota: %w", err)
 	}
-	if used >= limit {
+	if used >= int64(limit) {
 		return fmt.Errorf(
 			"training_limit_exceeded: plan=%s limit=%d period=%s used=%d",
 			plan, limit, period, used,
@@ -128,7 +128,7 @@ func (s *InterviewService) GetByID(ctx context.Context, id string) (usecase.Inte
 	return dto, nil
 }
 
-func (s *InterviewService) GetByUser(ctx context.Context, userID, status string, limit, offset int) ([]usecase.InterviewDTO, error) {
+func (s *InterviewService) GetByUser(ctx context.Context, userID, status string, limit, offset int64) ([]usecase.InterviewDTO, error) {
 	interviews, err := s.repository.GetByUser(ctx, userID, status, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("get interviews: %w", err)

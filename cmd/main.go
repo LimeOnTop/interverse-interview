@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"github.com/LimeOnTop/interverse-interview/internal/apperr"
 	"log"
 	"net"
 	"os"
@@ -11,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/cmd/config"
 	"github.com/LimeOnTop/interverse-interview/internal/client"
 	"github.com/LimeOnTop/interverse-interview/internal/controller"
 	"github.com/LimeOnTop/interverse-interview/internal/repository"
 	"github.com/LimeOnTop/interverse-interview/internal/service"
-	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -30,6 +31,7 @@ const shutdownTimeout = 15 * time.Second
 func main() {
 	cfg := config.Load()
 
+	apperr.Configure(cfg.DevMode)
 	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
 		panic("open database: " + err.Error())
