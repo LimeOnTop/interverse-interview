@@ -63,6 +63,15 @@ func looksInternal(msg string) bool {
 		"/home/",
 		"password=",
 		"postgres://",
+		"get interview:",
+		"get session content:",
+		"get session items:",
+		"load session:",
+		"start session:",
+		"save session items:",
+		"update interview",
+		"get interview technologies:",
+		"reset stale session",
 	}
 	for _, m := range markers {
 		if strings.Contains(lower, m) {

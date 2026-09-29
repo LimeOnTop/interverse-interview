@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/LimeOnTop/interverse-interview/internal/apperr"
+	"strings"
 	"time"
 
 	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
+	"github.com/LimeOnTop/interverse-interview/internal/apperr"
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
+	"github.com/LimeOnTop/interverse-interview/internal/repository"
 	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 )
 
@@ -194,7 +196,7 @@ func (c *InterviewController) StartSession(ctx context.Context, req *pb.StartSes
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.StartSessionResponse{
-			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
+			Response: &pb.Response{Success: false, Error: sessionError(err)},
 		}, nil
 	}
 
@@ -213,7 +215,7 @@ func (c *InterviewController) GetSessionContent(ctx context.Context, req *pb.Get
 			return nil, fmt.Errorf("context canceled: %w", err)
 		}
 		return &pb.GetSessionContentResponse{
-			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
+			Response: &pb.Response{Success: false, Error: sessionError(err)},
 		}, nil
 	}
 
@@ -223,6 +225,25 @@ func (c *InterviewController) GetSessionContent(ctx context.Context, req *pb.Get
 		Questions: toProtoSessionItems(content.Questions),
 		Tasks:     toProtoSessionItems(content.Tasks),
 	}, nil
+}
+
+func sessionError(err error) string {
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return apperr.Message(err, "Тренировка не найдена")
+	case strings.Contains(err.Error(), "forbidden"):
+		return apperr.Message(err, "Нет доступа к тренировке")
+	case strings.Contains(err.Error(), "already completed"):
+		return apperr.Message(err, "Тренировка уже завершена")
+	case strings.Contains(err.Error(), "technologies are required"):
+		return apperr.Message(err, "Добавьте технологии для тренировки")
+	case strings.Contains(err.Error(), "not enough questions"):
+		return apperr.Message(err, err.Error())
+	case strings.Contains(err.Error(), "not enough tasks"):
+		return apperr.Message(err, err.Error())
+	default:
+		return apperr.Message(err, "Не удалось загрузить тренировку")
+	}
 }
 
 func parseScheduledAt(value string) (time.Time, error) {

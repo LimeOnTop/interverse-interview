@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
 	"github.com/google/uuid"
 )
+
+var ErrNotFound = errors.New("not found")
 
 type InterviewRepository struct {
 	db *sql.DB
@@ -56,8 +59,8 @@ func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.In
 		&interview.Level, &interview.Specialization,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return entity.Interview{}, fmt.Errorf("get interview: not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.Interview{}, fmt.Errorf("get interview: %w", ErrNotFound)
 		}
 		return entity.Interview{}, fmt.Errorf("get interview: %w", err)
 	}
