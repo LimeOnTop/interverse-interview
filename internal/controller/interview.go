@@ -228,6 +228,11 @@ func (c *InterviewController) GetSessionContent(ctx context.Context, req *pb.Get
 }
 
 func sessionError(err error) string {
+	var insufficient *usecase.InsufficientQuestionsError
+	if errors.As(err, &insufficient) {
+		return insufficient.UserMessage()
+	}
+
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
 		return apperr.Message(err, "Тренировка не найдена")
@@ -237,10 +242,6 @@ func sessionError(err error) string {
 		return apperr.Message(err, "Тренировка уже завершена")
 	case strings.Contains(err.Error(), "technologies are required"):
 		return apperr.Message(err, "Добавьте технологии для тренировки")
-	case strings.Contains(err.Error(), "not enough questions"):
-		return apperr.Message(err, err.Error())
-	case strings.Contains(err.Error(), "not enough tasks"):
-		return apperr.Message(err, err.Error())
 	default:
 		return apperr.Message(err, "Не удалось загрузить тренировку")
 	}

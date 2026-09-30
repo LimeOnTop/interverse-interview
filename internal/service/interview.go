@@ -12,16 +12,15 @@ import (
 )
 
 const (
-	defaultStatus                    = entity.StatusScheduled
-	minQuestionsPerSession           = 10
-	maxQuestionsPerSession           = 20
-	minTasksPerSession               = 1
-	maxTasksPerSession               = 3
-	questionBankFallbackTechnologies = "Go"
-	subscriptionPlanFree             = "free"
-	subscriptionPlanPaid             = "paid"
-	freeTrainingsPerWeek             = 3
-	paidTrainingsPerDay              = 20
+	defaultStatus          = entity.StatusScheduled
+	minQuestionsPerSession = 10
+	maxQuestionsPerSession = 20
+	minTasksPerSession     = 1
+	maxTasksPerSession     = 3
+	subscriptionPlanFree   = "free"
+	subscriptionPlanPaid   = "paid"
+	freeTrainingsPerWeek   = 3
+	paidTrainingsPerDay    = 20
 )
 
 func moscowLocation() *time.Location {
@@ -228,7 +227,7 @@ func (s *InterviewService) StartSession(ctx context.Context, interviewID, userID
 			Technology:  ref.Technology,
 			Difficulty:  ref.Difficulty,
 			Category:    ref.Category,
-			Options:     toSessionOptions(ref.Options),
+			Options:     shuffledSessionOptions(ref.Options),
 		})
 	}
 
@@ -319,19 +318,17 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 		questionCount, taskCount, err = sessionItemCounts(len(questionPool), len(taskPool))
 	}
 
+	// Never substitute another stack: if the selected technologies do not have
+	// enough material, tell the user instead of silently serving other questions.
 	if err != nil {
-		fallbackTechnologies := fallbackTechnologiesForQuestionBank(technologies)
-		fallbackQuestions, fallbackTasks := s.collectPoolsWithoutSpecialization(ctx, fallbackTechnologies, difficulty)
-		questionPool = mergeQuestionRefs(questionPool, fallbackQuestions)
-		taskPool = mergeQuestionRefs(taskPool, fallbackTasks)
-		questionCount, taskCount, err = sessionItemCounts(len(questionPool), len(taskPool))
-	}
-
-	if err != nil {
-		return nil, nil, fmt.Errorf(
-			"%w (level=%s, technologies=%s). Сейчас доступны вопросы/задачи для: %s",
-			err, difficulty, strings.Join(technologies, ", "), questionBankFallbackTechnologies,
-		)
+		return nil, nil, &usecase.InsufficientQuestionsError{
+			Technologies: technologies,
+			Level:        level,
+			Questions:    len(questionPool),
+			Tasks:        len(taskPool),
+			MinQuestions: minQuestionsPerSession,
+			MinTasks:     minTasksPerSession,
+		}
 	}
 
 	selectedQuestions := pickItems(questionPool, questionCount)
@@ -394,7 +391,7 @@ func (s *InterviewService) buildSessionContentDTO(ctx context.Context, interview
 			continue
 		}
 
-		items[index].Options = toSessionOptions(question.Options)
+		items[index].Options = shuffledSessionOptions(question.Options)
 		if err := s.repository.UpdateSessionItemOptions(ctx, item.ID, items[index].Options); err != nil {
 			return usecase.SessionContentDTO{}, fmt.Errorf("backfill session item options: %w", err)
 		}
@@ -480,28 +477,35 @@ func mapLevelToDifficulty(level string) string {
 	}
 }
 
+var difficultyLevels = []string{"intern", "junior", "middle", "senior"}
+
+// difficultyFallbackOrder returns the requested difficulty followed by the
+// nearest levels (closest first, easier first on ties), so an Intern session
+// falls back to Junior material rather than Senior.
 func difficultyFallbackOrder(requested string) []string {
-	candidates := []string{
-		requested,
-		"senior",
-		"middle",
-		"junior",
-		"intern",
+	requestedIndex := -1
+	for index, level := range difficultyLevels {
+		if level == requested {
+			requestedIndex = index
+			break
+		}
+	}
+	if requestedIndex == -1 {
+		if requested == "" {
+			return append([]string(nil), difficultyLevels...)
+		}
+		return append([]string{requested}, difficultyLevels...)
 	}
 
-	seen := make(map[string]struct{}, len(candidates))
-	order := make([]string, 0, len(candidates))
-	for _, difficulty := range candidates {
-		if difficulty == "" {
-			continue
+	order := []string{requested}
+	for distance := 1; distance < len(difficultyLevels); distance++ {
+		if lower := requestedIndex - distance; lower >= 0 {
+			order = append(order, difficultyLevels[lower])
 		}
-		if _, exists := seen[difficulty]; exists {
-			continue
+		if higher := requestedIndex + distance; higher < len(difficultyLevels) {
+			order = append(order, difficultyLevels[higher])
 		}
-		seen[difficulty] = struct{}{}
-		order = append(order, difficulty)
 	}
-
 	return order
 }
 
@@ -583,24 +587,6 @@ func pickItems(items []usecase.QuestionRef, count int) []usecase.QuestionRef {
 	return shuffled[:count]
 }
 
-func fallbackTechnologiesForQuestionBank(selected []string) []string {
-	seen := make(map[string]struct{}, len(selected)+1)
-	for _, technology := range selected {
-		seen[technology] = struct{}{}
-	}
-
-	fallback := make([]string, 0, len(selected)+1)
-	for _, technology := range append(selected, questionBankFallbackTechnologies) {
-		if _, exists := seen[technology]; exists {
-			continue
-		}
-		seen[technology] = struct{}{}
-		fallback = append(fallback, technology)
-	}
-
-	return fallback
-}
-
 func mergeQuestionRefs(existing, extra []usecase.QuestionRef) []usecase.QuestionRef {
 	if len(extra) == 0 {
 		return existing
@@ -626,6 +612,19 @@ func mergeQuestionRefs(existing, extra []usecase.QuestionRef) []usecase.Question
 	}
 
 	return merged
+}
+
+// shuffledSessionOptions randomizes answer order per session so the correct
+// option is not always in the same position as in the question bank.
+func shuffledSessionOptions(options []usecase.QuestionOptionRef) []entity.SessionOption {
+	result := toSessionOptions(options)
+	rand.Shuffle(len(result), func(i, j int) {
+		result[i], result[j] = result[j], result[i]
+	})
+	for index := range result {
+		result[index].SortOrder = index
+	}
+	return result
 }
 
 func toSessionOptions(options []usecase.QuestionOptionRef) []entity.SessionOption {
