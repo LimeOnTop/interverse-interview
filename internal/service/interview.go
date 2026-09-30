@@ -142,6 +142,20 @@ func (s *InterviewService) Update(ctx context.Context, interview entity.Intervie
 		return usecase.InterviewDTO{}, fmt.Errorf("update interview: %w", err)
 	}
 
+	// An empty list means "keep the current stack": status-only updates (for
+	// example completing a training from the report service) must not wipe the
+	// technologies the user selected.
+	if len(technologies) == 0 {
+		existing, err := s.repository.GetTechnologies(ctx, interview.ID)
+		if err != nil {
+			return usecase.InterviewDTO{}, fmt.Errorf("get interview technologies: %w", err)
+		}
+
+		dto := toDTO(updated)
+		dto.Technologies = existing
+		return dto, nil
+	}
+
 	if err := s.repository.DeleteTechnologies(ctx, interview.ID); err != nil {
 		return usecase.InterviewDTO{}, fmt.Errorf("delete interview technologies: %w", err)
 	}
