@@ -28,8 +28,13 @@ func (r *InterviewRepository) Create(ctx context.Context, interview entity.Inter
 	interview.UpdatedAt = time.Now()
 
 	query := `
-		INSERT INTO interviews (id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		WITH created AS (
+			INSERT INTO interviews (id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			RETURNING id, user_id, created_at
+		)
+		INSERT INTO interview_quota_log (user_id, interview_id, created_at)
+		SELECT user_id, id, created_at FROM created
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -148,7 +153,7 @@ func (r *InterviewRepository) GetScheduled(ctx context.Context, userID string, d
 func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID string, since time.Time) (int64, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM interviews
+		FROM interview_quota_log
 		WHERE user_id = $1 AND created_at >= $2
 	`
 	var count int64

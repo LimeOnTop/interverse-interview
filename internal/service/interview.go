@@ -19,8 +19,11 @@ const (
 	maxTasksPerSession     = 3
 	subscriptionPlanFree   = "free"
 	subscriptionPlanPaid   = "paid"
-	freeTrainingsPerWeek   = 3
-	paidTrainingsPerDay    = 20
+	// Basic gets a single training per account, ever.
+	freeTrainingsTotal = 1
+	// Pro: one training costs ~0.4 ₽ of DeepSeek tokens, so 5/day keeps the
+	// worst case (~150/month) near 60 ₽, a small share of the subscription.
+	paidTrainingsPerDay = 5
 )
 
 func moscowLocation() *time.Location {
@@ -86,16 +89,9 @@ func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subs
 		limit = paidTrainingsPerDay
 		period = "day"
 	} else {
-		// Monday-based week in Europe/Moscow
-		weekday := int(now.Weekday())
-		if weekday == 0 {
-			weekday = 7
-		}
-		monday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).
-			AddDate(0, 0, -(weekday - 1))
-		since = monday
-		limit = freeTrainingsPerWeek
-		period = "week"
+		since = time.Time{}
+		limit = freeTrainingsTotal
+		period = "total"
 	}
 
 	used, err := s.repository.CountCreatedSince(ctx, userID, since.UTC())
