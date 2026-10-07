@@ -73,28 +73,32 @@ func (s *InterviewService) Create(ctx context.Context, interview entity.Intervie
 	return dto, nil
 }
 
-func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subscriptionPlan string) error {
-	now := time.Now().In(moscowLocation())
+// quotaWindow is the plan's training limit and the period it is counted over:
+// Pro per Moscow calendar day, Basic for all time.
+type quotaWindow struct {
+	plan     string
+	limit    int
+	period   string
+	since    time.Time
+	resetsAt *time.Time
+}
+
+func trainingQuotaWindow(subscriptionPlan string, now time.Time) quotaWindow {
+	now = now.In(moscowLocation())
 	plan := strings.ToLower(strings.TrimSpace(subscriptionPlan))
 	if plan != subscriptionPlanPaid {
-		plan = subscriptionPlanFree
+		return quotaWindow{plan: subscriptionPlanFree, limit: freeTrainingsTotal, period: "total"}
 	}
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	resetsAt := start.AddDate(0, 0, 1)
+	return quotaWindow{plan: plan, limit: paidTrainingsPerDay, period: "day", since: start, resetsAt: &resetsAt}
+}
 
-	var since time.Time
-	var limit int
-	var period string
+func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subscriptionPlan string) error {
+	window := trainingQuotaWindow(subscriptionPlan, time.Now())
+	plan, limit, period := window.plan, window.limit, window.period
 
-	if plan == subscriptionPlanPaid {
-		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		limit = paidTrainingsPerDay
-		period = "day"
-	} else {
-		since = time.Time{}
-		limit = freeTrainingsTotal
-		period = "total"
-	}
-
-	used, err := s.repository.CountCreatedSince(ctx, userID, since.UTC())
+	used, err := s.repository.CountCreatedSince(ctx, userID, window.since.UTC())
 	if err != nil {
 		return fmt.Errorf("check training quota: %w", err)
 	}
@@ -105,6 +109,34 @@ func (s *InterviewService) ensureTrainingQuota(ctx context.Context, userID, subs
 		)
 	}
 	return nil
+}
+
+// GetTrainingStats reports quota usage the same way ensureTrainingQuota
+// enforces it, plus the user's trainings by status.
+func (s *InterviewService) GetTrainingStats(ctx context.Context, userID, subscriptionPlan string) (usecase.TrainingStatsDTO, error) {
+	window := trainingQuotaWindow(subscriptionPlan, time.Now())
+	used, err := s.repository.CountCreatedSince(ctx, userID, window.since.UTC())
+	if err != nil {
+		return usecase.TrainingStatsDTO{}, fmt.Errorf("training stats: %w", err)
+	}
+	counts, err := s.repository.CountByStatus(ctx, userID)
+	if err != nil {
+		return usecase.TrainingStatsDTO{}, fmt.Errorf("training stats: %w", err)
+	}
+
+	stats := usecase.TrainingStatsDTO{
+		QuotaUsed:     int(used),
+		QuotaLimit:    window.limit,
+		QuotaPeriod:   window.period,
+		QuotaResetsAt: window.resetsAt,
+		Completed:     int(counts[entity.StatusCompleted]),
+		InProgress:    int(counts[entity.StatusInProgress]),
+		Scheduled:     int(counts[entity.StatusScheduled]),
+	}
+	for _, count := range counts {
+		stats.Total += int(count)
+	}
+	return stats, nil
 }
 
 func (s *InterviewService) GetByID(ctx context.Context, id string) (usecase.InterviewDTO, error) {
