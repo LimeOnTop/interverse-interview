@@ -55,6 +55,34 @@ func (c *InterviewController) CreateInterview(ctx context.Context, req *pb.Creat
 	}, nil
 }
 
+func (c *InterviewController) GetTrainingStats(ctx context.Context, req *pb.GetTrainingStatsRequest) (*pb.GetTrainingStatsResponse, error) {
+	stats, err := c.interview.GetTrainingStats(ctx, req.GetUserId(), req.GetSubscriptionPlan())
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, fmt.Errorf("context canceled: %w", err)
+		}
+		return &pb.GetTrainingStatsResponse{
+			Response: &pb.Response{Success: false, Error: apperr.Message(err, "request failed")},
+		}, nil
+	}
+
+	resetsAt := ""
+	if stats.QuotaResetsAt != nil {
+		resetsAt = stats.QuotaResetsAt.UTC().Format(time.RFC3339)
+	}
+	return &pb.GetTrainingStatsResponse{
+		Response:      &pb.Response{Success: true},
+		QuotaUsed:     int32(stats.QuotaUsed),
+		QuotaLimit:    int32(stats.QuotaLimit),
+		QuotaPeriod:   stats.QuotaPeriod,
+		QuotaResetsAt: resetsAt,
+		Total:         int32(stats.Total),
+		Completed:     int32(stats.Completed),
+		InProgress:    int32(stats.InProgress),
+		Scheduled:     int32(stats.Scheduled),
+	}, nil
+}
+
 func (c *InterviewController) GetInterview(ctx context.Context, req *pb.GetInterviewRequest) (*pb.GetInterviewResponse, error) {
 	interview, err := c.interview.GetByID(ctx, req.InterviewId)
 	if err != nil {

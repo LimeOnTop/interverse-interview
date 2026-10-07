@@ -15,6 +15,7 @@ type InterviewRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetScheduled(ctx context.Context, userID string, date time.Time) ([]entity.Interview, error)
 	CountCreatedSince(ctx context.Context, userID string, since time.Time) (int64, error)
+	CountByStatus(ctx context.Context, userID string) (map[string]int64, error)
 	AddTechnology(ctx context.Context, interviewID, technologyID string) error
 	GetTechnologies(ctx context.Context, interviewID string) ([]string, error)
 	DeleteTechnologies(ctx context.Context, interviewID string) error

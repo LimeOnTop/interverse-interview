@@ -163,6 +163,26 @@ func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID stri
 	return count, nil
 }
 
+// CountByStatus returns the user's interviews grouped by status.
+func (r *InterviewRepository) CountByStatus(ctx context.Context, userID string) (map[string]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM interviews WHERE user_id = $1 GROUP BY status`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("count interviews by status: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int64)
+	for rows.Next() {
+		var status string
+		var count int64
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, fmt.Errorf("scan interview status count: %w", err)
+		}
+		counts[status] = count
+	}
+	return counts, rows.Err()
+}
+
 func (r *InterviewRepository) AddTechnology(ctx context.Context, interviewID, technologyID string) error {
 	query := `INSERT INTO interview_technologies (interview_id, technology_id) VALUES ($1, $2)`
 
