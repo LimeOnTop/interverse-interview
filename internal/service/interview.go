@@ -21,9 +21,11 @@ const (
 	subscriptionPlanPaid   = "paid"
 	// Basic gets a single training per account, ever.
 	freeTrainingsTotal = 1
-	// Pro: one training costs ~0.4 ₽ of DeepSeek tokens, so 5/day keeps the
-	// worst case (~150/month) near 60 ₽, a small share of the subscription.
-	paidTrainingsPerDay = 5
+	// Pro: one training costs ~0.4 ₽ of DeepSeek tokens, so 15/day keeps the
+	// worst case (~450/month) near 180 ₽.
+	paidTrainingsPerDay = 15
+	// The Pro daily limit renews at 12:00 Moscow time.
+	quotaResetHour = 12
 )
 
 func moscowLocation() *time.Location {
@@ -74,7 +76,7 @@ func (s *InterviewService) Create(ctx context.Context, interview entity.Intervie
 }
 
 // quotaWindow is the plan's training limit and the period it is counted over:
-// Pro per Moscow calendar day, Basic for all time.
+// Pro per day from 12:00 to 12:00 Moscow time, Basic for all time.
 type quotaWindow struct {
 	plan     string
 	limit    int
@@ -89,7 +91,10 @@ func trainingQuotaWindow(subscriptionPlan string, now time.Time) quotaWindow {
 	if plan != subscriptionPlanPaid {
 		return quotaWindow{plan: subscriptionPlanFree, limit: freeTrainingsTotal, period: "total"}
 	}
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	start := time.Date(now.Year(), now.Month(), now.Day(), quotaResetHour, 0, 0, 0, now.Location())
+	if now.Before(start) {
+		start = start.AddDate(0, 0, -1)
+	}
 	resetsAt := start.AddDate(0, 0, 1)
 	return quotaWindow{plan: plan, limit: paidTrainingsPerDay, period: "day", since: start, resetsAt: &resetsAt}
 }
