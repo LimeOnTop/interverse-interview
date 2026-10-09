@@ -37,9 +37,11 @@ func main() {
 		panic("open database: " + err.Error())
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(30)
-	db.SetConnMaxIdleTime(30 * time.Minute)
+	pool, err := config.ConfigureDatabasePool(db)
+	if err != nil {
+		panic("database pool: " + err.Error())
+	}
+	log.Printf("database pool: max_open=%d max_idle=%d idle_time=%s lifetime=%s", pool.MaxOpen, pool.MaxIdle, pool.MaxIdleTime, pool.MaxLifetime)
 
 	defer db.Close()
 

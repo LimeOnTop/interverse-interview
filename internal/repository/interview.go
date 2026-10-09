@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
+	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 	"github.com/google/uuid"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type InterviewRepository struct {
 	db *sql.DB
@@ -65,7 +64,7 @@ func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.In
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return entity.Interview{}, fmt.Errorf("get interview: %w", ErrNotFound)
+			return entity.Interview{}, fmt.Errorf("get interview: %w", usecase.ErrNotFound)
 		}
 		return entity.Interview{}, fmt.Errorf("get interview: %w", err)
 	}

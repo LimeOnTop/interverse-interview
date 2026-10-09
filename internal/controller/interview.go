@@ -10,7 +10,6 @@ import (
 	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/internal/apperr"
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
-	"github.com/LimeOnTop/interverse-interview/internal/repository"
 	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 )
 
@@ -262,7 +261,7 @@ func sessionError(err error) string {
 	}
 
 	switch {
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, usecase.ErrNotFound):
 		return apperr.Message(err, "Тренировка не найдена")
 	case strings.Contains(err.Error(), "forbidden"):
 		return apperr.Message(err, "Нет доступа к тренировке")

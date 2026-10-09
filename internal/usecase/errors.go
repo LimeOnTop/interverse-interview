@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -32,3 +33,5 @@ func (e *InsufficientQuestionsError) UserMessage() string {
 		e.MinQuestions, e.MinTasks, e.Questions, e.Tasks,
 	)
 }
+
+var ErrNotFound = errors.New("not found")
