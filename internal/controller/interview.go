@@ -10,12 +10,17 @@ import (
 	pb "github.com/LimeOnTop/interverse-contracts/interview/gen"
 	"github.com/LimeOnTop/interverse-interview/internal/apperr"
 	"github.com/LimeOnTop/interverse-interview/internal/entity"
+	"github.com/LimeOnTop/interverse-interview/internal/service"
 	"github.com/LimeOnTop/interverse-interview/internal/usecase"
 )
 
 type InterviewController struct {
 	pb.UnimplementedInterviewServiceServer
-	interview usecase.Interview
+	review      *service.ReviewTrainingService
+	interview   usecase.Interview
+	preparation interface {
+		Execute(context.Context, *pb.VacancyPreparationRequest) (*pb.VacancyPreparationResponse, error)
+	}
 }
 
 func NewInterviewController(interview usecase.Interview) *InterviewController {
@@ -38,6 +43,7 @@ func (c *InterviewController) CreateInterview(ctx context.Context, req *pb.Creat
 		ScheduledAt:    scheduledAt,
 		Level:          req.Level,
 		Specialization: req.Specialization,
+		TaskMode:       req.GetTaskMode(),
 	}, req.Technologies, req.GetSubscriptionPlan())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -158,6 +164,7 @@ func (c *InterviewController) UpdateInterview(ctx context.Context, req *pb.Updat
 	updated, err := c.interview.Update(ctx, entity.Interview{
 		ID:             req.InterviewId,
 		UserID:         existing.UserID,
+		TaskMode:       existing.TaskMode,
 		Title:          req.Title,
 		Description:    req.Description,
 		Status:         status,
@@ -299,6 +306,7 @@ func toProtoInterview(interview usecase.InterviewDTO) *pb.Interview {
 		UpdatedAt:      interview.UpdatedAt.Format(time.RFC3339),
 		Level:          interview.Level,
 		Specialization: interview.Specialization,
+		TaskMode:       interview.TaskMode,
 		Technologies:   interview.Technologies,
 	}
 }
@@ -327,4 +335,24 @@ func toProtoSessionItems(items []usecase.SessionItemDTO) []*pb.SessionItem {
 		})
 	}
 	return result
+}
+
+func (c *InterviewController) SetPreparationService(s interface {
+	Execute(context.Context, *pb.VacancyPreparationRequest) (*pb.VacancyPreparationResponse, error)
+}) {
+	c.preparation = s
+}
+func (c *InterviewController) VacancyPreparation(ctx context.Context, r *pb.VacancyPreparationRequest) (*pb.VacancyPreparationResponse, error) {
+	return c.preparation.Execute(ctx, r)
+}
+
+func (c *InterviewController) SetReviewTrainingService(s *service.ReviewTrainingService) {
+	c.review = s
+}
+func (c *InterviewController) ReviewTraining(ctx context.Context, r *pb.ReviewTrainingRequest) (*pb.StartSessionResponse, error) {
+	content, err := c.review.Create(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.StartSessionResponse{Response: &pb.Response{Success: true}, Interview: toProtoInterview(content.Interview), Questions: toProtoSessionItems(content.Questions), Tasks: toProtoSessionItems(content.Tasks)}, nil
 }

@@ -28,8 +28,8 @@ func (r *InterviewRepository) Create(ctx context.Context, interview entity.Inter
 
 	query := `
 		WITH created AS (
-			INSERT INTO interviews (id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			INSERT INTO interviews (id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization, task_mode)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 			RETURNING id, user_id, created_at
 		)
 		INSERT INTO interview_quota_log (user_id, interview_id, created_at)
@@ -40,7 +40,7 @@ func (r *InterviewRepository) Create(ctx context.Context, interview entity.Inter
 		interview.ID, interview.UserID,
 		interview.Title, interview.Description, interview.Status,
 		interview.ScheduledAt, interview.CreatedAt, interview.UpdatedAt,
-		interview.Level, interview.Specialization,
+		interview.Level, interview.Specialization, interview.TaskMode,
 	)
 	if err != nil {
 		return entity.Interview{}, fmt.Errorf("create interview: %w", err)
@@ -51,7 +51,7 @@ func (r *InterviewRepository) Create(ctx context.Context, interview entity.Inter
 
 func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.Interview, error) {
 	query := `
-		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization
+		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization, task_mode
 		FROM interviews WHERE id = $1
 	`
 
@@ -60,7 +60,7 @@ func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.In
 		&interview.ID, &interview.UserID,
 		&interview.Title, &interview.Description, &interview.Status,
 		&interview.ScheduledAt, &interview.CreatedAt, &interview.UpdatedAt,
-		&interview.Level, &interview.Specialization,
+		&interview.Level, &interview.Specialization, &interview.TaskMode,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -74,7 +74,7 @@ func (r *InterviewRepository) GetByID(ctx context.Context, id string) (entity.In
 
 func (r *InterviewRepository) GetByUser(ctx context.Context, userID, status string, limit, offset int64) ([]entity.Interview, error) {
 	query := `
-		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization
+		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization, task_mode
 		FROM interviews
 		WHERE user_id = $1
 	`
@@ -134,7 +134,7 @@ func (r *InterviewRepository) GetScheduled(ctx context.Context, userID string, d
 	endOfDay := startOfDay.Add(24 * time.Hour)
 
 	query := `
-		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization
+		SELECT id, user_id, title, description, status, scheduled_at, created_at, updated_at, level, specialization, task_mode
 		FROM interviews
 		WHERE user_id = $1 AND scheduled_at >= $2 AND scheduled_at < $3
 		ORDER BY scheduled_at ASC
@@ -164,7 +164,16 @@ func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID stri
 
 // CountByStatus returns the user's interviews grouped by status.
 func (r *InterviewRepository) CountByStatus(ctx context.Context, userID string) (map[string]int64, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM interviews WHERE user_id = $1 GROUP BY status`, userID)
+	rows, err := r.db.QueryContext(ctx, `WITH path_status AS (
+ SELECT p.id, CASE
+ WHEN COUNT(DISTINCT a.step_index) FILTER(WHERE i.status='completed') >= jsonb_array_length(p.payload->'steps') THEN 'completed'
+ WHEN COUNT(a.interview_id)>0 THEN 'in_progress' ELSE 'scheduled' END AS status
+ FROM vacancy_preparations p LEFT JOIN vacancy_preparation_attempts a ON a.preparation_id=p.id
+ LEFT JOIN interviews i ON i.id=a.interview_id WHERE p.user_id=$1 GROUP BY p.id
+ ), units AS (
+ SELECT i.status FROM interviews i WHERE i.user_id=$1 AND NOT EXISTS(SELECT 1 FROM vacancy_preparation_attempts a WHERE a.interview_id=i.id)
+ UNION ALL SELECT status FROM path_status
+ ) SELECT status,COUNT(*) FROM units GROUP BY status`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("count interviews by status: %w", err)
 	}
@@ -352,7 +361,7 @@ func scanInterviews(rows *sql.Rows) ([]entity.Interview, error) {
 			&interview.ID, &interview.UserID,
 			&interview.Title, &interview.Description, &interview.Status,
 			&interview.ScheduledAt, &interview.CreatedAt, &interview.UpdatedAt,
-			&interview.Level, &interview.Specialization,
+			&interview.Level, &interview.Specialization, &interview.TaskMode,
 		); err != nil {
 			return nil, fmt.Errorf("scan interview: %w", err)
 		}

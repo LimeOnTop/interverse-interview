@@ -12,6 +12,7 @@ type InterviewDTO struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Level          string
+	TaskMode       string
 	Specialization string
 	Technologies   []string
 }

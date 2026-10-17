@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,12 +17,12 @@ const (
 	defaultStatus          = entity.StatusScheduled
 	minQuestionsPerSession = 10
 	maxQuestionsPerSession = 20
-	minTasksPerSession     = 1
+	minTasksPerSession     = 0
 	maxTasksPerSession     = 3
 	subscriptionPlanFree   = "free"
 	subscriptionPlanPaid   = "paid"
-	// Basic gets a single training per account, ever.
-	freeTrainingsTotal = 1
+	// Default lifetime allowance; production may override FREE_TRAININGS_TOTAL.
+	freeTrainingsTotal = 3
 	// Pro: one training costs ~0.4 ₽ of DeepSeek tokens, so 15/day keeps the
 	// worst case (~450/month) near 180 ₽.
 	paidTrainingsPerDay = 15
@@ -51,6 +53,16 @@ func NewInterviewService(repository usecase.InterviewRepository, questionBank us
 var _ usecase.Interview = (*InterviewService)(nil)
 
 func (s *InterviewService) Create(ctx context.Context, interview entity.Interview, technologies []string, subscriptionPlan string) (usecase.InterviewDTO, error) {
+	if interview.TaskMode == "" {
+		interview.TaskMode = "few"
+	}
+	if interview.TaskMode != "theory" && interview.TaskMode != "few" && interview.TaskMode != "many" {
+		return usecase.InterviewDTO{}, fmt.Errorf("invalid task_mode")
+	}
+	technologies = uniqueTechnologies(technologies)
+	if len(technologies) == 0 {
+		return usecase.InterviewDTO{}, fmt.Errorf("select at least one technology")
+	}
 	if interview.Status == "" {
 		interview.Status = defaultStatus
 	}
@@ -89,7 +101,7 @@ func trainingQuotaWindow(subscriptionPlan string, now time.Time) quotaWindow {
 	now = now.In(moscowLocation())
 	plan := strings.ToLower(strings.TrimSpace(subscriptionPlan))
 	if plan != subscriptionPlanPaid {
-		return quotaWindow{plan: subscriptionPlanFree, limit: freeTrainingsTotal, period: "total"}
+		return quotaWindow{plan: subscriptionPlanFree, limit: configuredFreeTrainingsTotal(), period: "total"}
 	}
 	start := time.Date(now.Year(), now.Month(), now.Day(), quotaResetHour, 0, 0, 0, now.Location())
 	if now.Before(start) {
@@ -258,7 +270,7 @@ func (s *InterviewService) StartSession(ctx context.Context, interviewID, userID
 		}
 	}
 
-	questionRefs, taskRefs, err := s.collectSessionQuestions(ctx, technologies, interview.Level, interview.Specialization)
+	questionRefs, taskRefs, err := s.collectSessionQuestions(ctx, technologies, interview.Level, interview.Specialization, interview.TaskMode)
 	if err != nil {
 		return usecase.SessionContentDTO{}, err
 	}
@@ -316,72 +328,42 @@ func (s *InterviewService) GetSessionContent(ctx context.Context, interviewID, u
 	return s.buildSessionContentDTO(ctx, interview)
 }
 
-func (s *InterviewService) collectSessionQuestions(ctx context.Context, technologies []string, level, specialization string) ([]usecase.QuestionRef, []usecase.QuestionRef, error) {
+func (s *InterviewService) collectSessionQuestions(ctx context.Context, technologies []string, level, specialization string, taskModes ...string) ([]usecase.QuestionRef, []usecase.QuestionRef, error) {
+	technologies = uniqueTechnologies(technologies)
 	difficulty := mapLevelToDifficulty(level)
-	questionPool := make([]usecase.QuestionRef, 0)
-	taskPool := make([]usecase.QuestionRef, 0)
-	seenQuestions := make(map[string]struct{})
-	seenTasks := make(map[string]struct{})
-
-	perTechnologyLimit := 80
-
+	questionPool, taskPool := []usecase.QuestionRef{}, []usecase.QuestionRef{}
 	for _, technology := range technologies {
-		questions, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeQuestion, perTechnologyLimit)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fetch questions for %s: %w", technology, err)
-		}
-
-		for _, question := range questions {
-			if !matchesSpecialization(question, specialization) {
+		for _, category := range []string{entity.ItemTypeQuestion, entity.ItemTypeTask} {
+			if category == entity.ItemTypeTask && len(taskModes) > 0 && taskModes[0] == "theory" {
 				continue
 			}
-			if _, exists := seenQuestions[question.ID]; exists {
-				continue
+			items, err := s.fetchByTechnology(ctx, technology, difficulty, category, 80)
+			if err != nil {
+				return nil, nil, fmt.Errorf("fetch %s for %s: %w", category, technology, err)
 			}
-			seenQuestions[question.ID] = struct{}{}
-			questionPool = append(questionPool, question)
-		}
-
-		tasks, err := s.fetchByTechnology(ctx, technology, difficulty, entity.ItemTypeTask, perTechnologyLimit)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fetch tasks for %s: %w", technology, err)
-		}
-
-		for _, task := range tasks {
-			if !matchesSpecialization(task, specialization) {
-				continue
+			filtered := []usecase.QuestionRef{}
+			for _, item := range items {
+				if matchesSpecialization(item, specialization) {
+					filtered = append(filtered, item)
+				}
 			}
-			if _, exists := seenTasks[task.ID]; exists {
-				continue
+			// A technology with enough material must not lose its share just because
+			// older question-bank tags do not carry the specialization.
+			if len(filtered) < minQuestionsPerSession {
+				filtered = items
 			}
-			seenTasks[task.ID] = struct{}{}
-			taskPool = append(taskPool, task)
+			if category == entity.ItemTypeQuestion {
+				questionPool = mergeQuestionRefs(questionPool, filtered)
+			} else {
+				taskPool = mergeQuestionRefs(taskPool, filtered)
+			}
 		}
 	}
-
-	questionCount, taskCount, err := sessionItemCounts(len(questionPool), len(taskPool))
+	questionCount, taskCount, err := sessionItemCounts(len(questionPool), len(taskPool), taskModes...)
 	if err != nil {
-		questionPool, taskPool = s.collectPoolsWithoutSpecialization(ctx, technologies, difficulty)
-		questionCount, taskCount, err = sessionItemCounts(len(questionPool), len(taskPool))
+		return nil, nil, &usecase.InsufficientQuestionsError{Technologies: technologies, Level: level, Questions: len(questionPool), Tasks: len(taskPool), MinQuestions: minQuestionsPerSession, MinTasks: 0}
 	}
-
-	// Never substitute another stack: if the selected technologies do not have
-	// enough material, tell the user instead of silently serving other questions.
-	if err != nil {
-		return nil, nil, &usecase.InsufficientQuestionsError{
-			Technologies: technologies,
-			Level:        level,
-			Questions:    len(questionPool),
-			Tasks:        len(taskPool),
-			MinQuestions: minQuestionsPerSession,
-			MinTasks:     minTasksPerSession,
-		}
-	}
-
-	selectedQuestions := pickItems(questionPool, questionCount)
-	selectedTasks := pickItems(taskPool, taskCount)
-
-	return selectedQuestions, selectedTasks, nil
+	return pickBalancedItems(questionPool, technologies, questionCount), pickBalancedItems(taskPool, technologies, taskCount), nil
 }
 
 func (s *InterviewService) collectPoolsWithoutSpecialization(ctx context.Context, technologies []string, difficulty string) ([]usecase.QuestionRef, []usecase.QuestionRef) {
@@ -506,6 +488,7 @@ func toDTO(interview entity.Interview) usecase.InterviewDTO {
 		UpdatedAt:      interview.UpdatedAt,
 		Level:          interview.Level,
 		Specialization: interview.Specialization,
+		TaskMode:       interview.TaskMode,
 	}
 }
 
@@ -586,7 +569,7 @@ func matchesSpecialization(question usecase.QuestionRef, specialization string) 
 	return strings.Contains(normalizedCategory, normalizedSpecialization)
 }
 
-func sessionItemCounts(questionPoolSize, taskPoolSize int) (questionCount, taskCount int, err error) {
+func sessionItemCounts(questionPoolSize, taskPoolSize int, taskModes ...string) (questionCount, taskCount int, err error) {
 	if questionPoolSize < minQuestionsPerSession {
 		return 0, 0, fmt.Errorf(
 			"not enough questions in question bank: need at least %d, found %d",
@@ -604,12 +587,23 @@ func sessionItemCounts(questionPoolSize, taskPoolSize int) (questionCount, taskC
 	if questionPoolSize < maxQuestions {
 		maxQuestions = questionPoolSize
 	}
-	maxTasks := maxTasksPerSession
+	minTasks, maxTasks := 1, maxTasksPerSession
+	if len(taskModes) > 0 {
+		switch taskModes[0] {
+		case "theory":
+			minTasks, maxTasks = 0, 0
+		case "many":
+			minTasks, maxTasks = 4, 6
+		}
+	}
 	if taskPoolSize < maxTasks {
 		maxTasks = taskPoolSize
 	}
 
-	return randomIntInclusive(minQuestionsPerSession, maxQuestions), randomIntInclusive(minTasksPerSession, maxTasks), nil
+	if minTasks > maxTasks {
+		minTasks = maxTasks
+	}
+	return randomIntInclusive(minQuestionsPerSession, maxQuestions), randomIntInclusive(minTasks, maxTasks), nil
 }
 
 func randomIntInclusive(min, max int) int {
@@ -692,4 +686,71 @@ func optionTexts(options []entity.SessionOption) []string {
 		result = append(result, option.Text)
 	}
 	return result
+}
+
+// Each non-empty technology contributes one item per round. Exhausted buckets
+// release their share to the others; source metadata is never relabelled.
+func pickBalancedItems(items []usecase.QuestionRef, technologies []string, count int) []usecase.QuestionRef {
+	technologies = uniqueTechnologies(technologies)
+	buckets := make([][]usecase.QuestionRef, len(technologies))
+	for _, item := range items {
+		for i, technology := range technologies {
+			if strings.EqualFold(strings.TrimSpace(item.Technology), technology) {
+				buckets[i] = append(buckets[i], item)
+				break
+			}
+		}
+	}
+	for i := range buckets {
+		rand.Shuffle(len(buckets[i]), func(a, b int) { buckets[i][a], buckets[i][b] = buckets[i][b], buckets[i][a] })
+	}
+	rand.Shuffle(len(buckets), func(a, b int) { buckets[a], buckets[b] = buckets[b], buckets[a] })
+	selected := make([]usecase.QuestionRef, 0)
+	seen := map[string]bool{}
+	for len(selected) < count {
+		progressed := false
+		for i := range buckets {
+			for len(buckets[i]) > 0 && seen[buckets[i][0].ID] {
+				buckets[i] = buckets[i][1:]
+			}
+			if len(buckets[i]) == 0 {
+				continue
+			}
+			item := buckets[i][0]
+			buckets[i] = buckets[i][1:]
+			seen[item.ID] = true
+			selected = append(selected, item)
+			progressed = true
+			if len(selected) == count {
+				break
+			}
+		}
+		if !progressed {
+			break
+		}
+	}
+	return selected
+}
+
+func uniqueTechnologies(technologies []string) []string {
+	result := []string{}
+	seen := map[string]bool{}
+	for _, technology := range technologies {
+		technology = strings.TrimSpace(technology)
+		key := strings.ToLower(technology)
+		if key != "" && !seen[key] {
+			seen[key] = true
+			result = append(result, technology)
+		}
+	}
+	return result
+}
+
+// Used both by enforcement and stats, keeping all quota consumers in sync.
+func configuredFreeTrainingsTotal() int {
+	value, err := strconv.Atoi(os.Getenv("FREE_TRAININGS_TOTAL"))
+	if err != nil || value < 1 {
+		return freeTrainingsTotal
+	}
+	return value
 }

@@ -54,6 +54,8 @@ func main() {
 
 	interviewService := service.NewInterviewService(interviewRepository, questionClient)
 	interviewController := controller.NewInterviewController(interviewService)
+	interviewController.SetPreparationService(service.NewPreparationService(db, interviewService))
+	interviewController.SetReviewTrainingService(service.NewReviewTrainingService(db, interviewService))
 
 	lis, err := net.Listen("tcp", net.JoinHostPort("", cfg.Port))
 	if err != nil {

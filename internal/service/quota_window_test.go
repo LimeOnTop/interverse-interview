@@ -37,3 +37,22 @@ func TestTrainingQuotaWindow(t *testing.T) {
 		t.Fatalf("basic window = %+v", basic)
 	}
 }
+
+func TestConfiguredFreeQuota(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  int
+	}{{"", 3}, {"3", 3}, {"5", 5}, {"0", 3}, {"-2", 3}, {"invalid", 3}} {
+		t.Run(tc.value, func(t *testing.T) {
+			t.Setenv("FREE_TRAININGS_TOTAL", tc.value)
+			q := trainingQuotaWindow("free", time.Now())
+			if q.limit != tc.want || q.period != "total" {
+				t.Fatalf("quota=%+v, want limit %d", q, tc.want)
+			}
+			pro := trainingQuotaWindow("paid", time.Now())
+			if pro.limit != 15 {
+				t.Fatalf("Pro quota changed: %+v", pro)
+			}
+		})
+	}
+}

@@ -27,6 +27,9 @@ func (e *InsufficientQuestionsError) Error() string {
 
 // UserMessage is safe to show to the end user.
 func (e *InsufficientQuestionsError) UserMessage() string {
+	if e.MinTasks == 0 {
+		return fmt.Sprintf("По выбранным технологиям (%s) для уровня %s пока недостаточно теоретических вопросов: нужно минимум %d, найдено %d. Выберите другие технологии или уровень.", strings.Join(e.Technologies, ", "), e.Level, e.MinQuestions, e.Questions)
+	}
 	return fmt.Sprintf(
 		"По выбранным технологиям (%s) для уровня %s пока недостаточно материалов: нужно минимум %d вопросов и %d задач, найдено %d и %d. Выберите другие технологии или уровень.",
 		strings.Join(e.Technologies, ", "), e.Level,
