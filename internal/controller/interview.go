@@ -16,6 +16,7 @@ import (
 
 type InterviewController struct {
 	pb.UnimplementedInterviewServiceServer
+	practice    *service.PracticeStateService
 	review      *service.ReviewTrainingService
 	interview   usecase.Interview
 	preparation interface {
@@ -234,6 +235,9 @@ func (c *InterviewController) StartSession(ctx context.Context, req *pb.StartSes
 		}, nil
 	}
 
+	if c.practice != nil {
+		c.practice.MarkStarted(ctx, req.UserId, req.InterviewId)
+	}
 	return &pb.StartSessionResponse{
 		Response:  &pb.Response{Success: true, Message: "Training session started successfully"},
 		Interview: toProtoInterview(content.Interview),
@@ -354,5 +358,15 @@ func (c *InterviewController) ReviewTraining(ctx context.Context, r *pb.ReviewTr
 	if err != nil {
 		return nil, err
 	}
+	if c.practice != nil {
+		c.practice.MarkStarted(ctx, r.UserId, content.Interview.ID)
+	}
 	return &pb.StartSessionResponse{Response: &pb.Response{Success: true}, Interview: toProtoInterview(content.Interview), Questions: toProtoSessionItems(content.Questions), Tasks: toProtoSessionItems(content.Tasks)}, nil
+}
+
+func (c *InterviewController) SetPracticeStateService(s *service.PracticeStateService) {
+	c.practice = s
+}
+func (c *InterviewController) PracticeState(ctx context.Context, r *pb.PracticeStateRequest) (*pb.PracticeStateResponse, error) {
+	return c.practice.Execute(ctx, r)
 }

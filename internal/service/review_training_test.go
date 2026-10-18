@@ -46,7 +46,7 @@ func TestReviewTrainingPostgres(t *testing.T) {
 	if _, e = db.Exec(ddl); e != nil {
 		t.Fatal(e)
 	}
-	for _, file := range []string{"000003_training_sessions.up.sql", "000004_session_item_options.up.sql", "000009_review_training.up.sql"} {
+	for _, file := range []string{"000003_training_sessions.up.sql", "000004_session_item_options.up.sql", "000008_vacancy_preparations.up.sql", "000009_review_training.up.sql"} {
 		raw, e := os.ReadFile("../../migrations/" + file)
 		if e != nil {
 			t.Fatal(e)
@@ -128,4 +128,49 @@ func TestReviewTrainingPostgres(t *testing.T) {
 	if _, e = s.Create(ctx, request()); status.Code(e) != codes.ResourceExhausted {
 		t.Fatal("quota bypass", e)
 	}
+	// A stage retake remains inside its paid-for preparation, even at the daily cap.
+	prepID := uuid.NewString()
+	if _, e = db.Exec(`INSERT INTO vacancy_preparations(id,user_id,vacancy_key,payload) VALUES($1,1,'fixture','{}');`, prepID); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(`INSERT INTO vacancy_preparation_attempts(preparation_id,step_index,request_id,interview_id) VALUES($1,0,$2,$3)`, prepID, uuid.NewString(), source.ID); e != nil {
+		t.Fatal(e)
+	}
+	var before, after int
+	db.QueryRow(`SELECT count(*) FROM interview_quota_log`).Scan(&before)
+	pathRequest := request()
+	retake, e := s.Create(ctx, pathRequest)
+	if e != nil {
+		t.Fatal("stage retake blocked at quota cap", e)
+	}
+	db.QueryRow(`SELECT count(*) FROM interview_quota_log`).Scan(&after)
+	if after != before {
+		t.Fatal("stage retake charged another attempt")
+	}
+	var parent string
+	var stage int
+	if e = db.QueryRow(`SELECT preparation_id::text,step_index FROM vacancy_preparation_attempts WHERE interview_id=$1`, retake.Interview.ID).Scan(&parent, &stage); e != nil || parent != prepID || stage != 0 {
+		t.Fatal("retake lost stage membership", e)
+	}
+	again, e := s.Create(ctx, pathRequest)
+	if e != nil || again.Interview.ID != retake.Interview.ID {
+		t.Fatal("retake retry not idempotent", e)
+	}
+	// A retake of a retake must preserve membership too.
+	nextItems, _ := repo.GetSessionItems(ctx, retake.Interview.ID)
+	nested := request()
+	nested.SourceInterviewId = retake.Interview.ID
+	nested.StepIds = []string{nextItems[0].ID}
+	nestedResult, e := s.Create(ctx, nested)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = db.QueryRow(`SELECT preparation_id::text FROM vacancy_preparation_attempts WHERE interview_id=$1`, nestedResult.Interview.ID).Scan(&parent); e != nil || parent != prepID {
+		t.Fatal("nested retake lost membership", e)
+	}
+	db.QueryRow(`SELECT count(*) FROM interview_quota_log`).Scan(&after)
+	if after != before {
+		t.Fatal("nested retake charged quota")
+	}
+
 }

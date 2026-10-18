@@ -73,8 +73,29 @@ func (s *ReviewTrainingService) Create(ctx context.Context, r *pb.ReviewTraining
 		return usecase.SessionContentDTO{}, e
 	}
 	defer tx.Rollback()
-	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "review:"+r.UserId); e != nil {
+	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "training-quota:"+r.UserId); e != nil {
 		return usecase.SessionContentDTO{}, e
+	}
+	// Membership is resolved from the owned source, never from a client flag.
+	var preparationID string
+	var stepIndex int
+	err := tx.QueryRowContext(ctx, `SELECT a.preparation_id::text,a.step_index FROM vacancy_preparation_attempts a JOIN vacancy_preparations p ON p.id=a.preparation_id WHERE a.interview_id=$1 AND p.user_id=$2 LIMIT 1`, source.ID, r.UserId).Scan(&preparationID, &stepIndex)
+	if err != nil && err != sql.ErrNoRows {
+		return usecase.SessionContentDTO{}, err
+	}
+	attach := func(id string) error {
+		if preparationID == "" {
+			return nil
+		}
+		var belongs bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM vacancy_preparation_attempts WHERE interview_id=$1)`, id).Scan(&belongs); err != nil {
+			return err
+		}
+		if belongs {
+			return nil
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO vacancy_preparation_attempts(preparation_id,step_index,request_id,interview_id) VALUES($1,$2,$3,$4) ON CONFLICT(preparation_id,request_id) DO NOTHING`, preparationID, stepIndex, r.RequestId, id)
+		return err
 	}
 	var existing sql.NullString
 	var reportID string
@@ -83,7 +104,12 @@ func (s *ReviewTrainingService) Create(ctx context.Context, r *pb.ReviewTraining
 		if !existing.Valid || reportID != r.SourceReportId {
 			return fail(codes.FailedPrecondition, "Эта попытка повторения больше недоступна")
 		}
-		tx.Rollback()
+		if e = attach(existing.String); e != nil {
+			return usecase.SessionContentDTO{}, e
+		}
+		if e = tx.Commit(); e != nil {
+			return usecase.SessionContentDTO{}, e
+		}
 		return s.interview.GetSessionContent(ctx, existing.String, r.UserId)
 	}
 	if e != sql.ErrNoRows {
@@ -92,6 +118,9 @@ func (s *ReviewTrainingService) Create(ctx context.Context, r *pb.ReviewTraining
 	e = tx.QueryRowContext(ctx, `SELECT i.id::text FROM review_training_requests r JOIN interviews i ON i.id=r.interview_id WHERE r.user_id=$1 AND r.source_report_id=$2 AND i.status='in_progress' ORDER BY r.created_at DESC LIMIT 1`, r.UserId, r.SourceReportId).Scan(&existing)
 	if e == nil {
 		if _, e = tx.ExecContext(ctx, `INSERT INTO review_training_requests(user_id,request_id,source_report_id,interview_id) VALUES($1,$2,$3,$4)`, r.UserId, r.RequestId, r.SourceReportId, existing.String); e != nil {
+			return usecase.SessionContentDTO{}, e
+		}
+		if e = attach(existing.String); e != nil {
 			return usecase.SessionContentDTO{}, e
 		}
 		if e = tx.Commit(); e != nil {
@@ -104,10 +133,10 @@ func (s *ReviewTrainingService) Create(ctx context.Context, r *pb.ReviewTraining
 	}
 	window := trainingQuotaWindow(r.SubscriptionPlan, time.Now())
 	var used int
-	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM interview_quota_log WHERE user_id=$1 AND created_at>=$2`, r.UserId, window.since.UTC()).Scan(&used); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM interview_quota_log q WHERE q.user_id=$1 AND q.created_at>=$2 AND NOT EXISTS(SELECT 1 FROM vacancy_preparation_attempts a WHERE a.interview_id=q.interview_id)`, r.UserId, window.since.UTC()).Scan(&used); e != nil {
 		return usecase.SessionContentDTO{}, e
 	}
-	if used >= window.limit {
+	if preparationID == "" && used >= window.limit {
 		return fail(codes.ResourceExhausted, "Лимит тренировок исчерпан")
 	}
 	id := uuid.NewString()
@@ -146,7 +175,11 @@ func (s *ReviewTrainingService) Create(ctx context.Context, r *pb.ReviewTraining
 			return usecase.SessionContentDTO{}, e
 		}
 	}
-	if _, e = tx.ExecContext(ctx, `INSERT INTO interview_quota_log(user_id,interview_id) VALUES($1,$2)`, r.UserId, id); e != nil {
+	if preparationID == "" {
+		if _, e = tx.ExecContext(ctx, `INSERT INTO interview_quota_log(user_id,interview_id) VALUES($1,$2)`, r.UserId, id); e != nil {
+			return usecase.SessionContentDTO{}, e
+		}
+	} else if e = attach(id); e != nil {
 		return usecase.SessionContentDTO{}, e
 	}
 	if _, e = tx.ExecContext(ctx, `INSERT INTO review_training_requests(user_id,request_id,source_report_id,interview_id) VALUES($1,$2,$3,$4)`, r.UserId, r.RequestId, r.SourceReportId, id); e != nil {

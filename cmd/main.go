@@ -56,6 +56,41 @@ func main() {
 	interviewController := controller.NewInterviewController(interviewService)
 	interviewController.SetPreparationService(service.NewPreparationService(db, interviewService))
 	interviewController.SetReviewTrainingService(service.NewReviewTrainingService(db, interviewService))
+	var practiceSender service.PracticeSender
+	if os.Getenv("SMTP_HOST") != "" || cfg.DevMode {
+		m, err := client.NewPracticeMailer(client.PracticeSMTPConfig{Host: os.Getenv("SMTP_HOST"), Port: os.Getenv("SMTP_PORT"), Username: os.Getenv("SMTP_USERNAME"), Password: os.Getenv("SMTP_PASSWORD"), From: envDefault("SMTP_FROM", "InterVerse <no-reply@inter-verse.ru>"), FrontendURL: envDefault("FRONTEND_URL", "https://inter-verse.ru"), AuthURL: envDefault("AUTH_SERVICE_URL", "auth-service:50051"), DevMode: cfg.DevMode})
+		if err != nil {
+			panic(err)
+		}
+		defer m.Close()
+		practiceSender = m
+	}
+	practice := service.NewPracticeStateService(db, interviewService, service.NewPreparationService(db, interviewService), service.NewReviewTrainingService(db, interviewService), practiceSender)
+	interviewController.SetPracticeStateService(practice)
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+	defer stopWorker()
+	go func() {
+		ticker := time.NewTicker(20 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-workerCtx.Done():
+				return
+			case <-ticker.C:
+				for n := 0; n < 10; n++ {
+					ctx, cancel := context.WithTimeout(workerCtx, 25*time.Second)
+					sent, err := practice.DispatchOne(ctx, time.Now())
+					cancel()
+					if err != nil {
+						log.Printf("practice reminder worker: %v", err)
+					}
+					if err != nil || !sent {
+						break
+					}
+				}
+			}
+		}
+	}()
 
 	lis, err := net.Listen("tcp", net.JoinHostPort("", cfg.Port))
 	if err != nil {
@@ -134,4 +169,11 @@ func waitForShutdown(grpcServer *grpc.Server, healthServer *health.Server, errCh
 		log.Print("shutdown timed out, forcing stop")
 		grpcServer.Stop()
 	}
+}
+
+func envDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

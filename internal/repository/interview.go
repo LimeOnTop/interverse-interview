@@ -152,8 +152,9 @@ func (r *InterviewRepository) GetScheduled(ctx context.Context, userID string, d
 func (r *InterviewRepository) CountCreatedSince(ctx context.Context, userID string, since time.Time) (int64, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM interview_quota_log
-		WHERE user_id = $1 AND created_at >= $2
+		FROM interview_quota_log q
+		WHERE q.user_id = $1 AND q.created_at >= $2
+        AND NOT EXISTS(SELECT 1 FROM vacancy_preparation_attempts a WHERE a.interview_id=q.interview_id)
 	`
 	var count int64
 	if err := r.db.QueryRowContext(ctx, query, userID, since).Scan(&count); err != nil {
@@ -167,6 +168,7 @@ func (r *InterviewRepository) CountByStatus(ctx context.Context, userID string) 
 	rows, err := r.db.QueryContext(ctx, `WITH path_status AS (
  SELECT p.id, CASE
  WHEN COUNT(DISTINCT a.step_index) FILTER(WHERE i.status='completed') >= jsonb_array_length(p.payload->'steps') THEN 'completed'
+ WHEN COALESCE((p.payload->>'archived')::boolean,FALSE) THEN 'archived'
  WHEN COUNT(a.interview_id)>0 THEN 'in_progress' ELSE 'scheduled' END AS status
  FROM vacancy_preparations p LEFT JOIN vacancy_preparation_attempts a ON a.preparation_id=p.id
  LEFT JOIN interviews i ON i.id=a.interview_id WHERE p.user_id=$1 GROUP BY p.id

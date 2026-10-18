@@ -19,6 +19,7 @@ import (
 )
 
 type PreparationStep struct {
+	ID             string `json:"id"`
 	Technology     string `json:"technology"`
 	Specialization string `json:"specialization"`
 }
@@ -29,6 +30,8 @@ type PreparationAttempt struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 type Preparation struct {
+	Revision   int                  `json:"revision"`
+	Archived   bool                 `json:"archived"`
 	ID         string               `json:"id"`
 	VacancyKey string               `json:"vacancy_key"`
 	Title      string               `json:"title"`
@@ -90,6 +93,8 @@ func (s *PreparationService) Execute(ctx context.Context, r *pb.VacancyPreparati
 	switch r.Action {
 	case "list":
 		result, err = s.list(ctx, r.UserId)
+	case "update", "archive":
+		result, err = s.manage(ctx, r)
 	case "create":
 		if r.SubscriptionPlan != "paid" {
 			return nil, status.Error(codes.PermissionDenied, "Подготовка по вакансии доступна в Pro")
@@ -137,6 +142,7 @@ func (s *PreparationService) list(ctx context.Context, user string) ([]Preparati
 			rows.Close()
 			return nil, e
 		}
+		ensurePreparationStepIDs(&p)
 		p.Attempts = []PreparationAttempt{}
 		ps = append(ps, p)
 	}
@@ -179,7 +185,7 @@ func (s *PreparationService) prepare(ctx context.Context, r *pb.VacancyPreparati
 	}
 	defer tx.Rollback()
 	// Serialize path attempts and quota decisions for this account.
-	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "preparation:"+r.UserId); e != nil {
+	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "training-quota:"+r.UserId); e != nil {
 		return nil, e
 	}
 	var raw []byte
@@ -193,6 +199,9 @@ func (s *PreparationService) prepare(ctx context.Context, r *pb.VacancyPreparati
 	var p Preparation
 	if e = json.Unmarshal(raw, &p); e != nil {
 		return nil, e
+	}
+	if p.Archived {
+		return nil, status.Error(codes.FailedPrecondition, "Подготовка в архиве. Сначала восстановите её")
 	}
 	idx := int(r.StepIndex)
 	if idx < 0 || idx >= len(p.Steps) {
@@ -252,7 +261,7 @@ func (s *PreparationService) create(ctx context.Context, user, plan string, p Pr
 		return p, e
 	}
 	defer tx.Rollback()
-	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "preparation:"+user); e != nil {
+	if _, e = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "training-quota:"+user); e != nil {
 		return p, e
 	}
 	var raw []byte
@@ -274,13 +283,16 @@ func (s *PreparationService) create(ctx context.Context, user, plan string, p Pr
 	}
 	window := trainingQuotaWindow(plan, time.Now())
 	var used int64
-	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM interview_quota_log WHERE user_id=$1 AND created_at >= $2`, user, window.since.UTC()).Scan(&used); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM interview_quota_log q WHERE q.user_id=$1 AND q.created_at >= $2 AND NOT EXISTS(SELECT 1 FROM vacancy_preparation_attempts a WHERE a.interview_id=q.interview_id)`, user, window.since.UTC()).Scan(&used); e != nil {
 		return p, e
 	}
 	if used >= int64(window.limit) {
 		return p, status.Error(codes.ResourceExhausted, "training_limit_exceeded: Лимит тренировок исчерпан")
 	}
 	p.ID = uuid.NewString()
+	p.Revision = 1
+	p.Archived = false
+	ensurePreparationStepIDs(&p)
 	p.CreatedAt = time.Now()
 	p.Attempts = []PreparationAttempt{}
 	raw, _ = json.Marshal(p)
