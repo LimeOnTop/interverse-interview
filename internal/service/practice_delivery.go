@@ -26,7 +26,7 @@ func (s *PracticeStateService) retryMail(ctx context.Context, user string, p Pra
 	if s.sender == nil {
 		return nil, status.Error(codes.FailedPrecondition, "Письма временно недоступны")
 	}
-	r, e := s.db.ExecContext(ctx, `UPDATE practice_reminders SET email_attempts=0,email_failed=FALSE,email_retry_at=NOW(),email_error='',revision=revision+1,updated_at=NOW() WHERE id=$1 AND user_id=$2 AND revision=$3 AND state='scheduled' AND email_enabled AND email_failed AND email_sent_at IS NULL AND scheduled_at>NOW()-INTERVAL '30 minutes'`, p.ID, user, p.Revision)
+	r, e := s.db.ExecContext(ctx, `UPDATE practice_reminders SET email_attempts=0,email_failed=FALSE,email_retry_at=NOW(),email_error='',revision=revision+1,updated_at=NOW() WHERE id=$1 AND user_id=$2 AND revision=$3 AND state='scheduled' AND email_enabled AND email_failed AND email_error<>'uncertain' AND email_sent_at IS NULL AND scheduled_at>NOW()`, p.ID, user, p.Revision)
 	if e != nil {
 		return nil, e
 	}
@@ -46,7 +46,7 @@ func (s *PracticeStateService) DispatchOne(ctx context.Context, now time.Time) (
 		return false, e
 	}
 	defer tx.Rollback()
-	row := tx.QueryRowContext(ctx, `SELECT `+reminderColumns+`,user_id FROM practice_reminders WHERE state='scheduled' AND email_enabled AND email_sent_at IS NULL AND NOT email_failed AND email_attempts<3 AND (email_retry_at IS NULL OR email_retry_at<=$1) AND scheduled_at-lead_minutes*INTERVAL '1 minute'<=$1 AND scheduled_at>=$1-INTERVAL '30 minutes' ORDER BY scheduled_at FOR UPDATE SKIP LOCKED LIMIT 1`, now)
+	row := tx.QueryRowContext(ctx, `SELECT `+reminderColumns+`,user_id FROM practice_reminders WHERE state='scheduled' AND email_enabled AND email_sent_at IS NULL AND NOT email_failed AND email_attempts<3 AND (email_retry_at IS NULL OR email_retry_at<=$1) AND scheduled_at-lead_minutes*INTERVAL '1 minute'<=$1 AND scheduled_at>$1 ORDER BY scheduled_at FOR UPDATE SKIP LOCKED LIMIT 1`, now)
 	var p PracticeReminder
 	var raw []byte
 	var user string
@@ -65,18 +65,23 @@ func (s *PracticeStateService) DispatchOne(ctx context.Context, now time.Time) (
 	if !locked {
 		return false, nil
 	}
-	var sent int
-	if e = tx.QueryRowContext(ctx, `SELECT count(*) FROM practice_reminder_deliveries WHERE user_id=$1 AND sent_at>$2`, user, now.Add(-24*time.Hour)).Scan(&sent); e != nil {
+	// A reschedule must never send another accepted email for the same plan.
+	var deliveredAt sql.NullTime
+	if e = tx.QueryRowContext(ctx, `SELECT min(sent_at) FROM practice_reminder_deliveries WHERE reminder_id=$1`, p.ID).Scan(&deliveredAt); e != nil {
 		return false, e
+	}
+	if deliveredAt.Valid {
+		_, e = tx.ExecContext(ctx, `UPDATE practice_reminders SET email_sent_at=$2,email_failed=FALSE,email_retry_at=NULL WHERE id=$1`, p.ID, deliveredAt.Time)
+		if e != nil {
+			return false, e
+		}
+		return true, tx.Commit()
 	}
 	attempts := p.EmailAttempts + 1
 	failed := false
 	reason := ""
 	var retryAt *time.Time
-	if sent >= 5 {
-		failed = true
-		reason = "limit"
-	} else if sendErr := s.sender.Send(ctx, PracticeMail{UserID: user, Title: p.Title, Path: "/dashboard?reminder=" + p.ID, ScheduledAt: p.ScheduledAt, Timezone: p.Timezone}); sendErr != nil {
+	if sendErr := s.sender.Send(ctx, PracticeMail{UserID: user, Title: p.Title, Path: "/dashboard?reminder=" + p.ID, ScheduledAt: p.ScheduledAt, Timezone: p.Timezone}); sendErr != nil {
 		reason = "delivery_failed"
 		var delivery *PracticeDeliveryError
 		if errors.As(sendErr, &delivery) {
@@ -85,7 +90,7 @@ func (s *PracticeStateService) DispatchOne(ctx context.Context, now time.Time) (
 			}
 			if delivery.Retryable && attempts < 3 {
 				next := now.Add(time.Duration(attempts) * time.Minute)
-				if next.Before(p.ScheduledAt.Add(30 * time.Minute)) {
+				if next.Before(p.ScheduledAt) {
 					retryAt = &next
 					reason = "retrying"
 				}

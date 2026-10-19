@@ -191,8 +191,8 @@ func TestReminderRetriesKnownTemporaryFailureOnly(t *testing.T) {
 			now := time.Now()
 			p := draftReminder()
 			p.EmailEnabled = true
-			p.LeadMinutes = 10
-			p.ScheduledAt = now.Add(20 * time.Minute)
+			p.LeadMinutes = 60
+			p.ScheduledAt = now.Add(70 * time.Minute)
 			raw, e := practiceReq(t, s, "1", "save", p, "")
 			if e != nil {
 				t.Fatal(e)
@@ -213,6 +213,16 @@ func TestReminderRetriesKnownTemporaryFailureOnly(t *testing.T) {
 				if sender.calls != 1 {
 					t.Fatal("uncertain accepted mail duplicated")
 				}
+				if _, e := practiceReq(t, s, "1", "retry_email", p, ""); status.Code(e) != codes.FailedPrecondition {
+					t.Fatal("uncertain delivery retried manually", e)
+				}
+				p.ScheduledAt = now.Add(3 * time.Hour)
+				if _, e := practiceReq(t, s, "1", "save", p, ""); e != nil {
+					t.Fatal(e)
+				}
+				if _, e := s.DispatchOne(context.Background(), now.Add(2*time.Hour)); e != nil || sender.calls != 1 {
+					t.Fatal("rescheduling uncertain delivery caused a duplicate", e)
+				}
 			} else {
 				if sender.calls != 2 {
 					t.Fatal("temporary failure never retried")
@@ -226,18 +236,63 @@ func TestReminderRetriesKnownTemporaryFailureOnly(t *testing.T) {
 		})
 	}
 }
-func TestReminderEmailCapacityIsShownBeforeSavingSixth(t *testing.T) {
-	s := NewPracticeStateService(practiceTestDB(t), nil, nil, nil, &practiceSenderFake{})
+func TestReminderSendsOncePerPlanAtOneHourAndSurvivesRescheduling(t *testing.T) {
+	db := practiceTestDB(t)
+	sender := &practiceSenderFake{}
+	s := NewPracticeStateService(db, nil, nil, nil, sender)
+	now := time.Now()
+	plans := []PracticeReminder{}
 	for i := 0; i < 6; i++ {
 		p := draftReminder()
 		p.EmailEnabled = true
-		_, e := practiceReq(t, s, "1", "save", p, "")
-		if i < 5 && e != nil {
+		p.LeadMinutes = 0
+		p.ScheduledAt = now.Add(2 * time.Hour)
+		raw, e := practiceReq(t, s, "1", "save", p, "")
+		if e != nil {
 			t.Fatal(e)
 		}
-		if i == 5 && status.Code(e) != codes.FailedPrecondition {
-			t.Fatal("sixth email not rejected before promise", e)
+		json.Unmarshal(raw, &p)
+		if p.LeadMinutes != 60 {
+			t.Fatal("legacy interval accepted", p.LeadMinutes)
 		}
+		plans = append(plans, p)
+	}
+	if sent, e := s.DispatchOne(context.Background(), now.Add(59*time.Minute)); e != nil || sent {
+		t.Fatal("email sent before one-hour point", e)
+	}
+	for i := 0; i < 6; i++ {
+		if sent, e := s.DispatchOne(context.Background(), now.Add(time.Hour)); e != nil || !sent {
+			t.Fatal("one-hour email not sent", i, e)
+		}
+	}
+	if len(sender.mails) != 6 {
+		t.Fatal("daily cap still suppresses distinct trainings", len(sender.mails))
+	}
+	p := plans[0]
+	p.ScheduledAt = now.Add(4 * time.Hour)
+	raw, e := practiceReq(t, s, "1", "save", p, "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &p)
+	if !p.EmailSent {
+		t.Fatal("reschedule erased accepted email")
+	}
+	if sent, e := s.DispatchOne(context.Background(), now.Add(3*time.Hour)); e != nil || sent {
+		t.Fatal("reschedule duplicated accepted email", e)
+	}
+	if len(sender.mails) != 6 {
+		t.Fatal("duplicate after reschedule")
+	}
+	tooSoon := draftReminder()
+	tooSoon.EmailEnabled = true
+	tooSoon.ScheduledAt = now.Add(30 * time.Minute)
+	if _, e := practiceReq(t, s, "1", "save", tooSoon, ""); status.Code(e) != codes.InvalidArgument {
+		t.Fatal("late email accepted", e)
+	}
+	tooSoon.EmailEnabled = false
+	if _, e := practiceReq(t, s, "1", "save", tooSoon, ""); e != nil {
+		t.Fatal("nearby practice without email rejected", e)
 	}
 }
 

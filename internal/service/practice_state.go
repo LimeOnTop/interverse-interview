@@ -191,11 +191,11 @@ func validateSchedule(p PracticeReminder, now time.Time) error {
 	if !p.ScheduledAt.After(now) || p.ScheduledAt.After(now.AddDate(1, 0, 0)) {
 		return status.Error(codes.InvalidArgument, "Выберите время впереди, не дальше чем через год")
 	}
-	if p.LeadMinutes != 0 && p.LeadMinutes != 10 && p.LeadMinutes != 30 {
-		return status.Error(codes.InvalidArgument, "Выберите интервал напоминания")
+	if p.EmailEnabled && p.LeadMinutes != 60 {
+		return status.Error(codes.InvalidArgument, "Напоминание отправляется за час до практики")
 	}
 	if p.EmailEnabled && !p.ScheduledAt.Add(-time.Duration(p.LeadMinutes)*time.Minute).After(now) {
-		return status.Error(codes.InvalidArgument, "До практики меньше выбранного интервала. Выберите письмо в момент начала")
+		return status.Error(codes.InvalidArgument, "До практики меньше часа. Сохраните план без письма или выберите другое время")
 	}
 	if _, e := time.LoadLocation(p.Timezone); e != nil {
 		return status.Error(codes.InvalidArgument, "Выберите часовой пояс")
@@ -268,6 +268,7 @@ func (s *PracticeStateService) resolve(ctx context.Context, user string, p *Prac
 	return nil
 }
 func (s *PracticeStateService) saveReminder(ctx context.Context, user string, p PracticeReminder) (PracticeReminder, error) {
+	p.LeadMinutes = 60
 	if p.EmailEnabled && s.sender == nil {
 		return p, status.Error(codes.FailedPrecondition, "Письма временно недоступны. Сохраните практику без письма")
 	}
@@ -308,18 +309,7 @@ func (s *PracticeStateService) saveReminder(ctx context.Context, user string, p 
 	if active >= 20 && p.ID == "" {
 		return p, status.Error(codes.ResourceExhausted, "Можно сохранить до 20 напоминаний. Уберите ненужное")
 	}
-	if p.EmailEnabled {
-		at := p.ScheduledAt.Add(-time.Duration(p.LeadMinutes) * time.Minute)
-		var other int
-		e = tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM practice_reminders WHERE user_id=$1 AND id::text<>$2 AND state='scheduled' AND email_enabled AND email_sent_at IS NULL AND NOT email_failed AND scheduled_at-lead_minutes*INTERVAL '1 minute' BETWEEN $3::timestamptz-INTERVAL '24 hours' AND $3::timestamptz+INTERVAL '24 hours')+(SELECT count(*) FROM practice_reminder_deliveries WHERE user_id=$1 AND sent_at>$3::timestamptz-INTERVAL '24 hours' AND sent_at<=$3::timestamptz)`, user, p.ID, at).Scan(&other)
-		if e != nil {
-			return p, e
-		}
-		if other >= 5 {
-			return p, status.Error(codes.FailedPrecondition, "Можно отправить до 5 писем за 24 часа. Выберите другое время или сохраните план без письма")
-		}
-	}
-	result, e := scanReminder(tx.QueryRowContext(ctx, `INSERT INTO practice_reminders(id,user_id,target_key,kind,target_id,step_index,title,payload,scheduled_at,timezone,email_enabled,lead_minutes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(user_id,target_key) DO UPDATE SET scheduled_at=EXCLUDED.scheduled_at,timezone=EXCLUDED.timezone,email_enabled=EXCLUDED.email_enabled,lead_minutes=EXCLUDED.lead_minutes,title=EXCLUDED.title,payload=EXCLUDED.payload,state='scheduled',revision=practice_reminders.revision+1,email_sent_at=NULL,email_attempts=0,email_failed=FALSE,email_retry_at=NULL,email_error='',updated_at=NOW() RETURNING `+reminderColumns, uuid.NewString(), user, key, p.Kind, p.TargetID, p.StepIndex, p.Title, string(raw), p.ScheduledAt, p.Timezone, p.EmailEnabled, p.LeadMinutes))
+	result, e := scanReminder(tx.QueryRowContext(ctx, `INSERT INTO practice_reminders(id,user_id,target_key,kind,target_id,step_index,title,payload,scheduled_at,timezone,email_enabled,lead_minutes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(user_id,target_key) DO UPDATE SET scheduled_at=EXCLUDED.scheduled_at,timezone=EXCLUDED.timezone,email_enabled=EXCLUDED.email_enabled,lead_minutes=EXCLUDED.lead_minutes,title=EXCLUDED.title,payload=EXCLUDED.payload,state='scheduled',revision=practice_reminders.revision+1,email_sent_at=practice_reminders.email_sent_at,email_attempts=0,email_failed=(practice_reminders.email_error='uncertain'),email_retry_at=NULL,email_error=CASE WHEN practice_reminders.email_error='uncertain' THEN 'uncertain' ELSE '' END,updated_at=NOW() RETURNING `+reminderColumns, uuid.NewString(), user, key, p.Kind, p.TargetID, p.StepIndex, p.Title, string(raw), p.ScheduledAt, p.Timezone, p.EmailEnabled, p.LeadMinutes))
 	if e != nil {
 		return p, e
 	}
@@ -464,7 +454,7 @@ func (s *PracticeStateService) restoreReminder(ctx context.Context, user string,
 	if e = s.resolve(ctx, user, &saved); e != nil {
 		return nil, e
 	}
-	_, e = tx.ExecContext(ctx, `UPDATE practice_reminders SET state='scheduled',revision=revision+1,email_enabled=(email_enabled AND scheduled_at>NOW()),updated_at=NOW() WHERE id=$1`, p.ID)
+	_, e = tx.ExecContext(ctx, `UPDATE practice_reminders SET state='scheduled',revision=revision+1,lead_minutes=60,email_enabled=(email_enabled AND scheduled_at>NOW()+INTERVAL '1 hour'),updated_at=NOW() WHERE id=$1`, p.ID)
 	if e != nil {
 		return nil, e
 	}

@@ -80,6 +80,13 @@ func practiceTestDB(t *testing.T) *sql.DB {
 	if _, e = db.Exec(string(raw)); e != nil {
 		t.Fatal(e)
 	}
+	raw, e = os.ReadFile("../../migrations/000013_one_hour_reminders.up.sql")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(string(raw)); e != nil {
+		t.Fatal(e)
+	}
 	return db
 }
 func practiceReq(t *testing.T, s *PracticeStateService, user, action string, p any, plan string) ([]byte, error) {
@@ -92,7 +99,7 @@ func practiceReq(t *testing.T, s *PracticeStateService, user, action string, p a
 	return []byte(out.PayloadJson), nil
 }
 func draftReminder() PracticeReminder {
-	return PracticeReminder{Kind: "draft", TargetID: uuid.NewString(), ScheduledAt: time.Now().Add(time.Hour), Timezone: "Europe/Moscow", Payload: PracticePayload{Technologies: []string{"Python"}, Specialization: "backend", Level: "junior", TaskMode: "theory"}}
+	return PracticeReminder{Kind: "draft", TargetID: uuid.NewString(), ScheduledAt: time.Now().Add(2 * time.Hour), Timezone: "Europe/Moscow", Payload: PracticePayload{Technologies: []string{"Python"}, Specialization: "backend", Level: "junior", TaskMode: "theory"}}
 }
 func TestPracticeScheduleValidation(t *testing.T) {
 	p := draftReminder()
@@ -106,7 +113,7 @@ func TestPracticeScheduleValidation(t *testing.T) {
 	}
 	p.ScheduledAt = now.Add(5 * time.Minute)
 	p.EmailEnabled = true
-	p.LeadMinutes = 10
+	p.LeadMinutes = 60
 	if validateSchedule(p, now) == nil {
 		t.Fatal("mail would be sent in past")
 	}
@@ -208,9 +215,9 @@ func TestPracticePostgresMailRevisionAndFailure(t *testing.T) {
 	s := NewPracticeStateService(db, nil, nil, nil, sender)
 	now := time.Now()
 	p := draftReminder()
-	p.ScheduledAt = now.Add(20 * time.Minute)
+	p.ScheduledAt = now.Add(80 * time.Minute)
 	p.EmailEnabled = true
-	p.LeadMinutes = 10
+	p.LeadMinutes = 60
 	raw, e := practiceReq(t, s, "1", "save", p, "")
 	if e != nil {
 		t.Fatal(e)
@@ -231,7 +238,7 @@ func TestPracticePostgresMailRevisionAndFailure(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, e := s.DispatchOne(context.Background(), now.Add(111*time.Minute))
+			_, e := s.DispatchOne(context.Background(), now.Add(61*time.Minute))
 			errs <- e
 		}()
 	}
@@ -247,7 +254,7 @@ func TestPracticePostgresMailRevisionAndFailure(t *testing.T) {
 	}
 	// A failed SMTP delivery is visible and is never blindly retried.
 	bad := draftReminder()
-	bad.ScheduledAt = now.Add(time.Hour)
+	bad.ScheduledAt = now.Add(2 * time.Hour)
 	bad.EmailEnabled = true
 	raw, e = practiceReq(t, s, "2", "save", bad, "")
 	if e != nil {
