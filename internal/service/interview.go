@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	defaultStatus          = entity.StatusScheduled
-	minQuestionsPerSession = 10
-	maxQuestionsPerSession = 20
-	minTasksPerSession     = 0
-	maxTasksPerSession     = 3
-	subscriptionPlanFree   = "free"
-	subscriptionPlanPaid   = "paid"
+	defaultStatus             = entity.StatusScheduled
+	minQuestionsPerSession    = 10
+	minQuestionsPerTechnology = 3
+	maxQuestionsPerSession    = 20
+	minTasksPerSession        = 0
+	maxTasksPerSession        = 3
+	subscriptionPlanFree      = "free"
+	subscriptionPlanPaid      = "paid"
 	// Default lifetime allowance; production may override FREE_TRAININGS_TOTAL.
 	freeTrainingsTotal = 3
 	// Pro: one training costs ~0.4 ₽ of DeepSeek tokens, so 15/day keeps the
@@ -65,6 +66,12 @@ func (s *InterviewService) Create(ctx context.Context, interview entity.Intervie
 	}
 	if interview.Status == "" {
 		interview.Status = defaultStatus
+	}
+
+	if s.questionBank != nil {
+		if _, _, err := s.collectSessionQuestions(ctx, technologies, interview.Level, interview.Specialization, interview.TaskMode); err != nil {
+			return usecase.InterviewDTO{}, err
+		}
 	}
 
 	if err := s.ensureTrainingQuota(ctx, interview.UserID, subscriptionPlan); err != nil {
@@ -182,6 +189,12 @@ func (s *InterviewService) GetByUser(ctx context.Context, userID, status string,
 }
 
 func (s *InterviewService) Update(ctx context.Context, interview entity.Interview, technologies []string) (usecase.InterviewDTO, error) {
+	technologies = uniqueTechnologies(technologies)
+	if len(technologies) > 0 && s.questionBank != nil {
+		if _, _, err := s.collectSessionQuestions(ctx, technologies, interview.Level, interview.Specialization, interview.TaskMode); err != nil {
+			return usecase.InterviewDTO{}, err
+		}
+	}
 	updated, err := s.repository.Update(ctx, interview)
 	if err != nil {
 		return usecase.InterviewDTO{}, fmt.Errorf("update interview: %w", err)
@@ -359,10 +372,11 @@ func (s *InterviewService) collectSessionQuestions(ctx context.Context, technolo
 			}
 		}
 	}
-	questionCount, taskCount, err := sessionItemCounts(len(questionPool), len(taskPool), taskModes...)
+	questionCount, err := balancedQuestionCount(questionPool, technologies, level)
 	if err != nil {
-		return nil, nil, &usecase.InsufficientQuestionsError{Technologies: technologies, Level: level, Questions: len(questionPool), Tasks: len(taskPool), MinQuestions: minQuestionsPerSession, MinTasks: 0}
+		return nil, nil, err
 	}
+	taskCount := sessionTaskCount(len(taskPool), taskModes...)
 	return pickBalancedItems(questionPool, technologies, questionCount), pickBalancedItems(taskPool, technologies, taskCount), nil
 }
 
@@ -540,17 +554,71 @@ func difficultyFallbackOrder(requested string) []string {
 }
 
 func (s *InterviewService) fetchByTechnology(ctx context.Context, technology, difficulty, category string, limit int) ([]usecase.QuestionRef, error) {
+	pool := []usecase.QuestionRef{}
 	for _, candidateDifficulty := range difficultyFallbackOrder(difficulty) {
-		questions, err := s.questionBank.GetByTechnology(ctx, technology, candidateDifficulty, category, limit)
+		requestedLimit := limit
+		if len(pool) > 0 && category == entity.ItemTypeQuestion {
+			requestedLimit = minQuestionsPerTechnology - len(pool)
+		}
+		questions, err := s.questionBank.GetByTechnology(ctx, technology, candidateDifficulty, category, requestedLimit)
 		if err != nil {
 			return nil, err
 		}
-		if len(questions) > 0 {
-			return questions, nil
+		// Never borrow another technology's questions or invent their badge.
+		matching := []usecase.QuestionRef{}
+		for _, q := range questions {
+			if strings.EqualFold(strings.TrimSpace(q.Technology), technology) {
+				matching = append(matching, q)
+			}
+		}
+		pool = mergeQuestionRefs(pool, matching)
+		if len(pool) >= minQuestionsPerTechnology || (category != entity.ItemTypeQuestion && len(pool) > 0) {
+			return pool, nil
 		}
 	}
+	return pool, nil
+}
 
-	return nil, nil
+// All selected technologies must be represented, with at most one question's
+// difference. A thin bucket limits the total rather than silently disappearing.
+func balancedQuestionCount(items []usecase.QuestionRef, technologies []string, level string) (int, error) {
+	technologies = uniqueTechnologies(technologies)
+	if len(technologies) == 0 {
+		return 0, fmt.Errorf("select at least one technology")
+	}
+	counts := map[string]int{}
+	seen := map[string]bool{}
+	for _, q := range items {
+		if !seen[q.ID] {
+			counts[strings.ToLower(strings.TrimSpace(q.Technology))]++
+			seen[q.ID] = true
+		}
+	}
+	minimum := len(items)
+	for _, tech := range technologies {
+		n := counts[strings.ToLower(tech)]
+		if n < minQuestionsPerTechnology {
+			return 0, &usecase.InsufficientQuestionsError{Technologies: []string{tech}, Level: level, Questions: n, MinQuestions: minQuestionsPerTechnology}
+		}
+		if n < minimum {
+			minimum = n
+		}
+	}
+	balancedMax := minimum * len(technologies)
+	for _, tech := range technologies {
+		if counts[strings.ToLower(tech)] > minimum {
+			balancedMax++
+		}
+	}
+	maxCount := max(maxQuestionsPerSession, minQuestionsPerTechnology*len(technologies))
+	if maxCount > balancedMax {
+		maxCount = balancedMax
+	}
+	minCount := max(minQuestionsPerSession, minQuestionsPerTechnology*len(technologies))
+	if minCount > maxCount {
+		minCount = maxCount
+	}
+	return randomIntInclusive(minCount, maxCount), nil
 }
 
 func matchesSpecialization(question usecase.QuestionRef, specialization string) bool {
@@ -587,6 +655,10 @@ func sessionItemCounts(questionPoolSize, taskPoolSize int, taskModes ...string) 
 	if questionPoolSize < maxQuestions {
 		maxQuestions = questionPoolSize
 	}
+	return randomIntInclusive(minQuestionsPerSession, maxQuestions), sessionTaskCount(taskPoolSize, taskModes...), nil
+}
+
+func sessionTaskCount(taskPoolSize int, taskModes ...string) int {
 	minTasks, maxTasks := 1, maxTasksPerSession
 	if len(taskModes) > 0 {
 		switch taskModes[0] {
@@ -603,7 +675,7 @@ func sessionItemCounts(questionPoolSize, taskPoolSize int, taskModes ...string) 
 	if minTasks > maxTasks {
 		minTasks = maxTasks
 	}
-	return randomIntInclusive(minQuestionsPerSession, maxQuestions), randomIntInclusive(minTasks, maxTasks), nil
+	return randomIntInclusive(minTasks, maxTasks)
 }
 
 func randomIntInclusive(min, max int) int {
@@ -737,6 +809,16 @@ func uniqueTechnologies(technologies []string) []string {
 	seen := map[string]bool{}
 	for _, technology := range technologies {
 		technology = strings.TrimSpace(technology)
+		switch strings.ToLower(technology) {
+		case "go", "golang":
+			technology = "Go"
+		case "postgres", "postgresql":
+			technology = "PostgreSQL"
+		case "redis":
+			technology = "Redis"
+		case "kafka":
+			technology = "Kafka"
+		}
 		key := strings.ToLower(technology)
 		if key != "" && !seen[key] {
 			seen[key] = true
