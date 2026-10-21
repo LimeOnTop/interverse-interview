@@ -96,9 +96,6 @@ func (s *PreparationService) Execute(ctx context.Context, r *pb.VacancyPreparati
 	case "update", "archive":
 		result, err = s.manage(ctx, r)
 	case "create":
-		if r.SubscriptionPlan != "paid" {
-			return nil, status.Error(codes.PermissionDenied, "Подготовка по вакансии доступна в Pro")
-		}
 		var p Preparation
 		if json.Unmarshal([]byte(r.PayloadJson), &p) != nil {
 			return nil, status.Error(codes.InvalidArgument, "Некорректные данные подготовки")
